@@ -35,3 +35,7 @@ libraryDependencies ++= Seq(
 
 
 libraryDependencies += "com.assembla.scala-incubator" %% "graph-core" % "1.11.0"
+
+libraryDependencies += "com.google.inject" % "guice" % "4.1.0"
+
+libraryDependencies += "net.codingwell" %% "scala-guice" % "4.1.0"

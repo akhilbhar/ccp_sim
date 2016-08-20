@@ -24,6 +24,9 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="SBT: org.scala-lang:scala-library:2.11.8:jar" level="project" />
+    <orderEntry type="library" name="SBT: net.codingwell:scala-guice_2.11:4.1.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.google.inject.extensions:guice-multibindings:4.1.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.google.code.findbugs:jsr305:3.0.1:jar" level="project" />
     <orderEntry type="library" name="SBT: org.scalaz:scalaz-core_2.11:7.2.5:jar" level="project" />
     <orderEntry type="module-library">
       <library name="SBT: unmanaged-sources-and-docs">
@@ -92,17 +95,22 @@
     <orderEntry type="library" name="SBT: org.scalaz:scalaz-effect_2.11:7.2.5:jar" level="project" />
     <orderEntry type="library" name="SBT: org.scalaz.stream:scalaz-stream_2.11:0.8:jar" level="project" />
     <orderEntry type="library" name="SBT: org.scodec:scodec-bits_2.11:1.0.9:jar" level="project" />
+    <orderEntry type="library" name="SBT: aopalliance:aopalliance:1.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.google.guava:guava:19.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: com.google.inject:guice:4.1.0:jar" level="project" />
+    <orderEntry type="library" name="SBT: javax.inject:javax.inject:1:jar" level="project" />
     <orderEntry type="module-library">
-      <library>
+      <library name="SBT: unmanaged-jars">
         <CLASSES>
-          <root url="file://$MODULE_DIR$/../../lib" />
+          <root url="jar://$MODULE_DIR$/../../lib/YahooFinanceAPI-3.3.0-javadoc.jar!/" />
+          <root url="jar://$MODULE_DIR$/../../lib/YahooFinanceAPI-3.3.0-sources.jar!/" />
+          <root url="jar://$MODULE_DIR$/../../lib/YahooFinanceAPI-3.3.0.jar!/" />
+          <root url="jar://$MODULE_DIR$/../../lib/YahooFinanceAPI-3.4.0-javadoc.jar!/" />
+          <root url="jar://$MODULE_DIR$/../../lib/YahooFinanceAPI-3.4.0-sources.jar!/" />
+          <root url="jar://$MODULE_DIR$/../../lib/YahooFinanceAPI-3.4.0.jar!/" />
         </CLASSES>
         <JAVADOC />
-        <SOURCES>
-          <root url="file://$MODULE_DIR$/../../lib" />
-        </SOURCES>
-        <jarDirectory url="file://$MODULE_DIR$/../../lib" recursive="false" />
-        <jarDirectory url="file://$MODULE_DIR$/../../lib" recursive="false" type="SOURCES" />
+        <SOURCES />
       </library>
     </orderEntry>
   </component>

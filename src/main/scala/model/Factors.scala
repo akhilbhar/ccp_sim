@@ -21,4 +21,3 @@ trait Factors {
   protected def price(equity: Equity): Option[Double]
   protected def volatility(equity: Equity): Option[Double]
 }
-

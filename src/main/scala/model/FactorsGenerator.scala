@@ -16,10 +16,8 @@ object FixedFactorsGenerator {
   case class FixedFactors(price: Double, volatility: Double)
 }
 
-class FixedFactorsGenerator(fixedFactors: Map[Equity, FixedFactors])
-    extends FactorsGenerator {
-  case class GeneratedMarketFactors(fixedPrices: Map[Equity, Double])
-      extends Factors {
+class FixedFactorsGenerator(fixedFactors: Map[Equity, FixedFactors]) extends FactorsGenerator {
+  case class GeneratedMarketFactors(fixedPrices: Map[Equity, Double]) extends Factors {
     override protected def price(equity: Equity): Option[Double] =
       fixedPrices.get(equity)
 

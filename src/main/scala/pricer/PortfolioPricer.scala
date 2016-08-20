@@ -3,15 +3,14 @@ package pricer
 import model._
 import pricer.PortfolioPricingError.UnderlyingPricingErrors
 
-import scalaz.{-\/, NonEmptyList, \/, \/-}
 import scalaz.Scalaz._
+import scalaz.{-\/, NonEmptyList, \/, \/-}
 
 /**
   * Created by dennis on 15/8/16.
   */
 object PortfolioPricer {
-  def price(portfolio: Portfolio)(
-      implicit factors: Factors): PortfolioPricingError \/ Double = {
+  def price(portfolio: Portfolio)(implicit factors: Factors): PortfolioPricingError \/ Double = {
     def markToMarket[I <: Instrument](instrument: I)(
         implicit pricer: Pricer[I]): PricingError \/ Double = {
       pricer.price(instrument)
@@ -25,16 +24,12 @@ object PortfolioPricer {
     }
 
     val total: NonEmptyList[PricingError] \/ Double = \/.fromEither(
-        mtm
-          .map(_.validation.toValidationNel)
-          .stream
-          .reduceLeft((l, r) => (l |@| r)(_ + _))
-          .toEither
+      mtm.map(_.validation.toValidationNel).stream.reduceLeft((l, r) => (l |@| r)(_ + _)).toEither
     )
 
     total.fold(
-        error => -\/(UnderlyingPricingErrors(error.stream.toVector)),
-        success => \/-(success)
+      error => -\/(UnderlyingPricingErrors(error.stream.toVector)),
+      success => \/-(success)
     )
   }
 }
@@ -42,6 +37,5 @@ object PortfolioPricer {
 sealed trait PortfolioPricingError
 
 object PortfolioPricingError {
-  case class UnderlyingPricingErrors(errors: Vector[PricingError])
-      extends PortfolioPricingError
+  case class UnderlyingPricingErrors(errors: Vector[PricingError]) extends PortfolioPricingError
 }
