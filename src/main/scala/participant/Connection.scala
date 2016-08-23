@@ -1,4 +1,4 @@
-package player
+package participant
 
 import akka.actor.ActorRef
 

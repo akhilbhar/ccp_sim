@@ -1,10 +1,12 @@
+import sbt.Keys._
+
 name := "ccp_sim_scala"
 
 version := "1.0"
 
 scalaVersion := "2.11.8"
 
-libraryDependencies  ++= Seq(
+libraryDependencies ++= Seq(
   // other dependencies here
   "org.scalanlp" %% "breeze" % "0.12",
 //  // native libraries are not included by default. add this if you want them (as of 0.7)
@@ -30,12 +32,9 @@ libraryDependencies ++= Seq(
   "org.scalaz" %% "scalaz-core" % "7.2.5",
   "org.scalaz" %% "scalaz-concurrent" % "7.2.5",
   "org.scalaz" %% "scalaz-effect" % "7.2.5",
-  "org.scalaz.stream" %% "scalaz-stream" % "0.8"
+  "org.scalaz.stream" %% "scalaz-stream" % "0.8",
+  "com.assembla.scala-incubator" %% "graph-core" % "1.11.0",
+  "com.softwaremill.macwire" %% "macros" % "2.2.3" % "provided",
+  "com.softwaremill.macwire" %% "util" % "2.2.3",
+  "com.typesafe.akka" %% "akka-stream" % "2.4.9"
 )
-
-
-libraryDependencies += "com.assembla.scala-incubator" %% "graph-core" % "1.11.0"
-
-libraryDependencies += "com.google.inject" % "guice" % "4.1.0"
-
-libraryDependencies += "net.codingwell" %% "scala-guice" % "4.1.0"

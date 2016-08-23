@@ -1,23 +1,47 @@
 package model
 
-import akka.actor.ActorRef
+case class Portfolio(positions: List[Position]) {
+  def addPosition(position: Position): Portfolio = {
+    Portfolio(position +: positions)
+//    positions.find(p =>
+//      position.instrument.equals(p.instrument) && position.counterParty.equals(p.counterParty))
+//
+//    positions collectFirst {
+//      case p
+//          if position.instrument.equals(p.instrument) && position.counterParty.equals(
+//            p.counterParty) => {
+//        val newVolumeLong = aggregateVolume(p, position)
+//
+//        if (newVolumeLong._1 != 0) {
+//          Portfolio(
+//            (positions - p) + Position(p.instrument,
+//                                       newVolumeLong._1,
+//                                       p.counterParty,
+//                                       newVolumeLong._2))
+//        } else {
+//          None
+//        }
+//      }
+//    } match {
+//      case Some(p) => Portfolio()
+//      case None =>
+//    }
+  }
 
-import scalaz.NonEmptyList
+  def removePosition(position: Position): Portfolio = {
+    Portfolio(positions.filterNot(_.equals(position)))
+  }
 
-/**
-  * Created by dennis on 15/8/16.
-  */
-sealed trait Position
-
-case class LongPosition(instrument: Instrument,
-                        volume: Int,
-                        counterParty: ActorRef) extends Position
-
-case class ShortPosition(instrument: Instrument,
-                         volume: Int,
-                         counterParty: ActorRef) extends Position
-
-case class Portfolio(positions: NonEmptyList[Position])
+//  private def aggregateVolume(oldPosition: Position, newPosition: Position): (Int, Boolean) = {
+//    val newVolume = normalizeVolume(oldPosition) + normalizeVolume(newPosition)
+//
+//    (Math.abs(newVolume), newVolume >= 0)
+//  }
+//
+//  private def normalizeVolume(position: Position): Int = {
+//    if (!position.long) -position.volume else position.volume
+//  }
+}
 
 sealed trait PortfolioError
 

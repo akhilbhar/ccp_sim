@@ -4,30 +4,30 @@ import java.time.{Instant, LocalDate, ZoneId}
 import java.util.Calendar
 
 import model.{Equity, Price}
-import module.DataActor
 import yahoofinance.histquotes.Interval
 import yahoofinance.{Stock, YahooFinance}
 
 import scala.collection.JavaConversions
 import scala.util.{Failure, Success, Try}
-import scalaz.{-\/, \/, \/-}
+import scalaz.concurrent.Task
 
-case class YahooDataActor(name: String) extends DataActor {
-  override def historicalPrice(equity: Equity, date: LocalDate): DataError \/ Option[Price] = {
+class YahooHistoricalDataFetcher extends DataFetcher {
+  override def historicalPrice(equity: Equity, date: LocalDate): Task[Option[Price]] = {
     historicalPrices(equity, date, date).map(_.headOption)
   }
 
   override def historicalPrices(equity: Equity,
                                 from: LocalDate,
-                                to: LocalDate): DataError \/ Vector[Price] = {
+                                to: LocalDate): Task[Vector[Price]] = {
+    //Task({
+      val convertedFrom = localDateToCalendar(from)
+      val convertedTo = localDateToCalendar(to)
 
-    val convertedFrom = localDateToCalendar(from)
-    val convertedTo = localDateToCalendar(to)
-
-    Try(YahooFinance.get(equity.ticker, convertedFrom, convertedTo, Interval.DAILY)) match {
-      case Success(stock) => \/-(stockToHistoricalPricesVector(stock))
-      case Failure(e) => -\/(DataUnavailable(e))
-    }
+      Try(YahooFinance.get(equity.ticker, convertedFrom, convertedTo, Interval.DAILY)) match {
+        case Success(stock) => stockToHistoricalPricesVector(stock)
+        case Failure(e) => throw new Exception("Data unavailable for $equity.")
+      }
+    //})
   }
 
   private def localDateToCalendar(date: LocalDate): Calendar = {
@@ -47,12 +47,12 @@ case class YahooDataActor(name: String) extends DataActor {
       .map(
         quote =>
           Price(calendarToLocalDate(quote.getDate),
-                quote.getOpen,
-                quote.getHigh,
-                quote.getLow,
-                quote.getClose,
+                quote.getOpen.doubleValue(),
+                quote.getHigh.doubleValue(),
+                quote.getLow.doubleValue(),
+                quote.getClose.doubleValue(),
                 quote.getVolume,
-                quote.getAdjClose))
+                quote.getAdjClose.doubleValue()))
       .toVector
   }
 }
