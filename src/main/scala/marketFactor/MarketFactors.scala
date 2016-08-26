@@ -3,6 +3,8 @@ package marketFactor
 import marketFactor.MarketFactor.{Price, Volatility}
 import model.Equity
 
+import scala.concurrent.Future
+
 /**
   * Created by dennis on 15/8/16.
   */
@@ -14,11 +16,11 @@ object MarketFactor {
 }
 
 trait MarketFactors {
-  def apply(factor: MarketFactor): Option[Double] = factor match {
+  def apply(factor: MarketFactor): Future[Option[Double]] = factor match {
     case Price(equity) => price(equity)
     case Volatility(equity) => volatility(equity)
   }
 
-  protected def price(equity: Equity): Option[Double]
-  protected def volatility(equity: Equity): Option[Double]
+  protected def price(equity: Equity): Future[Option[Double]]
+  protected def volatility(equity: Equity): Future[Option[Double]]
 }

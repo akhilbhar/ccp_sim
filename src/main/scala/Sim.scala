@@ -11,34 +11,34 @@ import scala.concurrent.duration._
   * Created by dennis on 19/6/16.
   */
 object Sim extends App {
-//  val fifty = 50
-//  val hundred = 100
-//  implicit val timeout = Timeout(5 seconds)
-//
-//  val system = ActorSystem("Default")
-//  val dennis = system.actorOf(Client.props("Dennis"))
-//  val dan = system.actorOf(Client.props("Dan"))
-//
-//  val issuerService = system.actorOf(IssuerService.props("Service"))
-//  val market = system.actorOf(Market.props("Market"))
-//
-//  val microsoft: Issuer = Await.result(
-//      ask(issuerService, AddIssuer("Apple", Uniform(hundred, hundred)))
-//        .mapTo[Issuer],
-//      Duration.Inf)
-//
-//  val apple = Await.result(
-//      ask(issuerService, AddIssuer("Microsoft", Uniform(fifty, fifty)))
-//        .mapTo[Issuer],
-//      Duration.Inf)
-//
-//  val contract = Await.result(
-//      ask(market, AddContract(apple, dennis, dan)).mapTo[Equity],
-//      Duration.Inf)
-//
-//  val price = Await.result(contract.price, Duration.Inf)
-//
-//  println(price)
+  //  val fifty = 50
+  //  val hundred = 100
+  //  implicit val timeout = Timeout(5 seconds)
+  //
+  //  val system = ActorSystem("Default")
+  //  val dennis = system.actorOf(Client.props("Dennis"))
+  //  val dan = system.actorOf(Client.props("Dan"))
+  //
+  //  val issuerService = system.actorOf(IssuerService.props("Service"))
+  //  val market = system.actorOf(Market.props("Market"))
+  //
+  //  val microsoft: Issuer = Await.result(
+  //      ask(issuerService, AddIssuer("Apple", Uniform(hundred, hundred)))
+  //        .mapTo[Issuer],
+  //      Duration.Inf)
+  //
+  //  val apple = Await.result(
+  //      ask(issuerService, AddIssuer("Microsoft", Uniform(fifty, fifty)))
+  //        .mapTo[Issuer],
+  //      Duration.Inf)
+  //
+  //  val contract = Await.result(
+  //      ask(market, AddContract(apple, dennis, dan)).mapTo[Equity],
+  //      Duration.Inf)
+  //
+  //  val price = Await.result(contract.price, Duration.Inf)
+  //
+  //  println(price)
 
   val apple: Equity = Equity("AAPL")
 

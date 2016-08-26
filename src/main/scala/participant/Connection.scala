@@ -8,4 +8,5 @@ import akka.actor.ActorRef
 sealed trait Connection extends Product with Serializable
 
 final case class ParticipantLink(player: ActorRef) extends Connection
+
 final case class CrossMarginingAgreement(player: ActorRef) extends Connection
