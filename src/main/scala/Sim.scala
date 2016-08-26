@@ -1,11 +1,14 @@
-import java.time.LocalDate
-
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.pattern.ask
 import akka.util.Timeout
+import data.YahooHistoricalDataFetcher
+import marketFactor.HistoricalMarketFactorsBuilder
 import model.Equity
+import participant.{BilateralClearingEngine, Client}
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 
 /**
   * Created by dennis on 19/6/16.
@@ -40,15 +43,37 @@ object Sim extends App {
   //
   //  println(price)
 
-  val apple: Equity = Equity("AAPL")
+  val actorSystem = ActorSystem("Default")
+  val marketFactorsBuilder = HistoricalMarketFactorsBuilder(YahooHistoricalDataFetcher)
+  val name = "Dennis"
 
-  val gen: OneDayMarketFactorsGenerator = OneDayMarketFactorsGenerator(
-    LocalDate.now(),
-    Map((apple, CurrentFactors(100, 10, Vector(10, 20, 30, 40, 50, 60, 70, 80, 90, 100)))))
+//  val buyer = actorSystem.actorOf(Props(wire[Client]))
+//  val seller = actorSystem.actorOf(Props(wire[Client]))
+  val buyer = actorSystem.actorOf(Client.props("Dennis", marketFactorsBuilder))
+  val seller = actorSystem.actorOf(Client.props("Saskia", marketFactorsBuilder))
+  val instrument = Equity("AAPL")
 
-  implicit val system = ActorSystem("QuickStart")
+  BilateralClearingEngine.performTransaction(instrument, 1, buyer, seller)
+
   implicit val timeout = Timeout(5 seconds)
 
-  implicit val materializer = ActorMaterializer()
-  gen.factors.runForeach(println(_))
+  ask(buyer, Client.Value).mapTo[Double] onComplete {
+    case Success(v) => println("Value" + v)
+    case Failure(e) => println(e.getMessage)
+  }
+
+//  val fo = YahooHistoricalDataFetcher.historicalPrices(Equity("APPL"), LocalDate.now().minusDays(10), LocalDate.now())
+//
+//  fo onComplete {
+//    case Success(o) => println(o.getOrElse("Fuck"))
+//    case Failure(e) => println("BLBLALBLABLA" + e.getMessage)
+//  }
+
+//  val from = Calendar.getInstance();
+//  val to = Calendar.getInstance();
+//  from.add(Calendar.DATE, -2); // from 5 years ago
+//
+//  val google = YahooFinance.get("GOOG", from, to, Interval.DAILY);
+//
+//  println(google.getCurrency)
 }

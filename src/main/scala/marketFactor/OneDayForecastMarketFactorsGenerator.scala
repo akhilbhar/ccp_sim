@@ -9,7 +9,9 @@ import model.Equity
 import org.apache.commons.math3.random.{CorrelatedRandomVectorGenerator, GaussianRandomGenerator, JDKRandomGenerator}
 import org.apache.commons.math3.stat.correlation.Covariance
 
+import scala.concurrent.Future
 import scalaz.OptionT
+import scalaz.std.ListInstances
 
 /**
   * Created by dennis on 20/8/16.
@@ -17,7 +19,7 @@ import scalaz.OptionT
 case class OneDayMarketForecastFactorsGenerator(
     date: LocalDate,
     currentFactors: Map[Equity, Option[CurrentFactors]])
-    extends MarketFactorsGenerator {
+    extends MarketFactorsGenerator with ListInstances {
 
   private val nextDay = date.plusDays(1)
 
@@ -30,8 +32,12 @@ case class OneDayMarketForecastFactorsGenerator(
 
     val gaussianRandomGenerator = new GaussianRandomGenerator(randomGenerator)
 
-    val priceHistoryOption = sequence(
-      OptionT(currentFactors.values).map(_.priceHistory.toArray).run.toArray)
+    val foo = currentFactors.values
+
+    val priceHistoryOptionList = sequence(
+      OptionT(currentFactors.values.toList).map(_.priceHistory.toList).run)
+
+    val priceHistoryOption = priceHistoryOptionList.map(_.map(_.toArray).toArray)
 
     val covarianceMatrixOption = for {
       priceHistory <- priceHistoryOption
@@ -45,7 +51,7 @@ case class OneDayMarketForecastFactorsGenerator(
                                           gaussianRandomGenerator)
   }
 
-  private def sequence[T](l: Array[Option[T]]): Option[Array[T]] = {
+  private def sequence[T](l: List[Option[T]]): Option[List[T]] = {
     if (l.contains(None)) None else Some(l.flatten)
   }
 
@@ -74,12 +80,12 @@ case class OneDayMarketForecastFactorsGenerator(
 
   case class GeneratedMarketFactors(generatedPrices: Map[Equity, Option[Double]])
       extends MarketFactors {
-    override protected def price(equity: Equity): Option[Double] = {
-      generatedPrices.get(equity).flatten
+    override protected def price(equity: Equity): Future[Option[Double]] = {
+      Future.successful(generatedPrices.get(equity).flatten)
     }
 
-    override protected def volatility(equity: Equity): Option[Double] = {
-      currentFactors.get(equity).flatten.map(_.volatility)
+    override protected def volatility(equity: Equity): Future[Option[Double]] = {
+      Future.successful(currentFactors.get(equity).flatten.map(_.volatility))
     }
   }
 }

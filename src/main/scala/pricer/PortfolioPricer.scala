@@ -4,14 +4,16 @@ import marketFactor.MarketFactors
 import model._
 import pricer.PortfolioPricingError.UnderlyingPricingErrors
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scalaz.Scalaz._
+import scalaz.std.FutureInstances
 import scalaz.{-\/, EitherT, NonEmptyList, \/, \/-}
 
 /**
   * Created by dennis on 15/8/16.
   */
-object PortfolioPricer {
+object PortfolioPricer extends FutureInstances {
   def price(portfolio: Portfolio)(
       implicit factors: MarketFactors): Future[PortfolioPricingError \/ Double] = {
     def markToMarket[I <: Instrument](instrument: I)(
@@ -20,10 +22,11 @@ object PortfolioPricer {
     }
 
     val mtmF: Future[List[PricingError \/ Double]] = Future.sequence(portfolio.positions map {
-      case Position(instrument, volume, _, true) =>
-        (for { price <- EitherT(markToMarket(instrument)) } yield price * volume).run
-      case Position(instrument, volume, _, false) =>
-        (for { price <- EitherT(markToMarket(instrument)) } yield -price * volume).run
+      case Position(equity: Equity, volume, _, true) =>
+        (for { price <- EitherT(markToMarket(equity)) } yield price * volume).run
+
+      case Position(equity: Equity, volume, _, false) =>
+        (for { price <- EitherT(markToMarket(equity)) } yield -price * volume).run
     })
 
     val totalF: Future[NonEmptyList[PricingError] \/ Double] = {

@@ -6,6 +6,7 @@ import model.{Equity, Instrument}
 import pricer.PricingError.MissingMarketFactors
 
 import scala.annotation.implicitNotFound
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scalaz.{-\/, NonEmptyList, \/, \/-}
 

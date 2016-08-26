@@ -7,7 +7,7 @@ import participant.Client.AddPosition
 /**
   * Created by dennis on 20/8/16.
   */
-class BilateralClearingEngine extends ClearingEngine {
+case object BilateralClearingEngine extends ClearingEngine {
   override def performTransaction(instrument: Instrument,
                                   volume: Int,
                                   buyer: ActorRef,

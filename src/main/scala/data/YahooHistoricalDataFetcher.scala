@@ -8,10 +8,13 @@ import yahoofinance.histquotes.Interval
 import yahoofinance.{Stock, YahooFinance}
 
 import scala.collection.JavaConversions
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scalaz.OptionT
+import scalaz.std.FutureInstances
 
-class YahooHistoricalDataFetcher extends DataFetcher {
+// ??
+case object YahooHistoricalDataFetcher extends DataFetcher with FutureInstances {
   override def historicalPrice(equity: Equity, date: LocalDate): Future[Option[Price]] = {
     OptionT(historicalPrices(equity, date, date)).map(_.head).run
   }
@@ -20,17 +23,17 @@ class YahooHistoricalDataFetcher extends DataFetcher {
                                 from: LocalDate,
                                 to: LocalDate): Future[Option[Vector[Price]]] = {
     Future {
-      val convertedFrom = localDateToCalendar(from)
-      val convertedTo = localDateToCalendar(to)
+      val convertedFrom = localDateToCalendar(from.minusDays(1))
+      val convertedTo = localDateToCalendar(to.plusDays(1))
 
-      Option(YahooFinance.get(equity.ticker, convertedFrom, convertedTo, Interval.DAILY))
+      Option(YahooFinance.get(equity.ticker, convertedFrom, convertedTo, Interval.WEEKLY))
         .map(stockToHistoricalPricesVector)
     }
   }
 
   private def localDateToCalendar(date: LocalDate): Calendar = {
     val calendar = Calendar.getInstance()
-    calendar.setTimeInMillis(date.toEpochDay)
+    calendar.setTimeInMillis(date.atStartOfDay(ZoneId.systemDefault()).toInstant.toEpochMilli)
 
     calendar
   }

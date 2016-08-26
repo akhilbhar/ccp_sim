@@ -8,13 +8,15 @@ import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import marketFactor.OneDayForecastMarketFactorsGenerator.CurrentFactors
 import model.{Equity, Portfolio}
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scalaz.OptionT
+import scalaz.std.FutureInstances
 
 /**
   * Created by dennis on 21/8/16.
   */
-case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher) extends MarketFactorsBuilder {
+case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher) extends MarketFactorsBuilder with FutureInstances {
   override def oneDayForecastMarketFactors(portfolio: Portfolio, date: LocalDate)(
       implicit parameters: MarketFactorsParameters)
     : Future[OneDayMarketForecastFactorsGenerator] = {
