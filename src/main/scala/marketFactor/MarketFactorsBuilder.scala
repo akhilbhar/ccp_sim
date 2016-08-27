@@ -1,6 +1,6 @@
 package marketFactor
 
-import java.time.LocalDate
+import java.util.Calendar
 
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import model.Portfolio
@@ -11,10 +11,10 @@ import scala.concurrent.Future
   * Created by dennis on 21/8/16.
   */
 trait MarketFactorsBuilder {
-  def oneDayForecastMarketFactors(portfolio: Portfolio, date: LocalDate)(
+  def oneDayForecastMarketFactors(portfolio: Portfolio, date: Calendar)(
     implicit parameters: MarketFactorsParameters): Future[MarketFactorsGenerator]
 
-  def marketFactors(date: LocalDate)(
+  def marketFactors(date: Calendar)(
     implicit parameters: MarketFactorsParameters): MarketFactors
 }
 

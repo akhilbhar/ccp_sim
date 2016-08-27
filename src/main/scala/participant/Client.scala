@@ -1,6 +1,6 @@
 package participant
 
-import java.time.LocalDate
+import java.util.Calendar
 
 import akka.actor.{Actor, ActorRef, Props}
 import akka.pattern.pipe
@@ -26,7 +26,9 @@ case class Client(name: String, marketFactorsBuilder: MarketFactorsBuilder) exte
   }
 
   private def value: Future[PortfolioPricingError \/ Double] = {
-    implicit val factors = marketFactorsBuilder.marketFactors(LocalDate.now)(new MarketFactorsParameters)
+    val date = Calendar.getInstance
+    date.add(Calendar.DATE, -1)
+    implicit val factors = marketFactorsBuilder.marketFactors(date)(new MarketFactorsParameters)
 
     PortfolioPricer.price(portfolio)
   }

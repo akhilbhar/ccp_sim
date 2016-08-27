@@ -1,11 +1,11 @@
 package model
 
-import java.time.LocalDate
+import java.util.Calendar
 
 /**
   * Created by dennis on 18/8/16.
   */
-case class Price(date: LocalDate,
+case class Price(date: Calendar,
                  open: Double,
                  high: Double,
                  low: Double,

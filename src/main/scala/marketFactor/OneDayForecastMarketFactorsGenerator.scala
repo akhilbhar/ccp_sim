@@ -1,6 +1,6 @@
 package marketFactor
 
-import java.time.LocalDate
+import java.util.Calendar
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
@@ -17,11 +17,11 @@ import scalaz.std.ListInstances
   * Created by dennis on 20/8/16.
   */
 case class OneDayMarketForecastFactorsGenerator(
-    date: LocalDate,
+    date: Calendar,
     currentFactors: Map[Equity, Option[CurrentFactors]])
     extends MarketFactorsGenerator with ListInstances {
 
-  private val nextDay = date.plusDays(1)
+  // private val nextDay = date.plusDays(1)
 
   override def factors: Option[Source[MarketFactors, NotUsed]] = {
     generator.map(createSource)

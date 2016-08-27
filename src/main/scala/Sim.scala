@@ -1,3 +1,5 @@
+import java.util.Calendar
+
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.util.Timeout
@@ -5,10 +7,12 @@ import data.YahooHistoricalDataFetcher
 import marketFactor.HistoricalMarketFactorsBuilder
 import model.Equity
 import participant.{BilateralClearingEngine, Client}
+import pricer.PortfolioPricingError
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
+import scalaz.\/
 
 /**
   * Created by dennis on 19/6/16.
@@ -56,24 +60,24 @@ object Sim extends App {
   BilateralClearingEngine.performTransaction(instrument, 1, buyer, seller)
 
   implicit val timeout = Timeout(5 seconds)
-
-  ask(buyer, Client.Value).mapTo[Double] onComplete {
-    case Success(v) => println("Value" + v)
+//
+  ask(buyer, Client.Value).mapTo[PortfolioPricingError \/ Double] onComplete {
+    case Success(v) => println(v)
     case Failure(e) => println(e.getMessage)
   }
+//
+  val from = Calendar.getInstance();
+  val to = Calendar.getInstance();
+  from.add(Calendar.DATE, -1); // from 1 year ago
 
-//  val fo = YahooHistoricalDataFetcher.historicalPrices(Equity("APPL"), LocalDate.now().minusDays(10), LocalDate.now())
-//
-//  fo onComplete {
-//    case Success(o) => println(o.getOrElse("Fuck"))
-//    case Failure(e) => println("BLBLALBLABLA" + e.getMessage)
-//  }
+  val foo = YahooHistoricalDataFetcher.historicalPrice(Equity("AAPL"), from)
 
-//  val from = Calendar.getInstance();
-//  val to = Calendar.getInstance();
-//  from.add(Calendar.DATE, -2); // from 5 years ago
+  foo onComplete {
+    case Success(d) => println(d.getOrElse("Shit"))
+    case Failure(f) => println(f.getMessage)
+  }
+
+//  val google = YahooFinance.get("AAPL", from, to, Interval.DAILY)
 //
-//  val google = YahooFinance.get("GOOG", from, to, Interval.DAILY);
-//
-//  println(google.getCurrency)
+//  println(google.getHistory)
 }

@@ -1,6 +1,6 @@
 package marketFactor
 
-import java.time.LocalDate
+import java.util.Calendar
 
 import breeze.numerics.sqrt
 import data.DataFetcher
@@ -17,7 +17,7 @@ import scalaz.std.FutureInstances
   * Created by dennis on 21/8/16.
   */
 case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher) extends MarketFactorsBuilder with FutureInstances {
-  override def oneDayForecastMarketFactors(portfolio: Portfolio, date: LocalDate)(
+  override def oneDayForecastMarketFactors(portfolio: Portfolio, date: Calendar)(
       implicit parameters: MarketFactorsParameters)
     : Future[OneDayMarketForecastFactorsGenerator] = {
     val equities: List[Equity] = portfolio.positions
@@ -27,13 +27,17 @@ case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher) extends Mark
       }
       .sortBy(_.ticker)
 
+    val from = date
+    val to = date.clone().asInstanceOf[Calendar]
+    to.add(Calendar.DATE, -parameters.horizon)
+
     val mapCurrentFactors: Map[Equity, Future[Option[CurrentFactors]]] = equities.map(equity => {
       val futureCurrentFactors = (
         for {
           price <- OptionT(dataFetcher.historicalPrice(equity, date)).map(_.adjusted)
           priceHistory <- OptionT(
             dataFetcher
-              .historicalPrices(equity, date.minusDays(parameters.horizon), date)
+              .historicalPrices(equity, from, to)
               .map(_.map(_.map(_.adjusted))))
         } yield CurrentFactors(price, standardDeviation(priceHistory), priceHistory)
       ).run
@@ -50,19 +54,25 @@ case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher) extends Mark
     } yield OneDayMarketForecastFactorsGenerator(date, currentFactors)
   }
 
-  override def marketFactors(date: LocalDate)(
+  override def marketFactors(date: Calendar)(
       implicit parameters: MarketFactorsParameters): MarketFactors = {
     new MarketFactors {
-      override protected def price(equity: Equity): Future[Option[Double]] =
+      override protected def price(equity: Equity): Future[Option[Double]] = {
         OptionT(dataFetcher.historicalPrice(equity, date)).map(_.adjusted).run
+      }
 
-      override protected def volatility(equity: Equity): Future[Option[Double]] =
+      override protected def volatility(equity: Equity): Future[Option[Double]] = {
+        val from = date
+        val to = date.clone().asInstanceOf[Calendar]
+        to.add(Calendar.DATE, -parameters.horizon)
+
         (for {
           priceHistory <- OptionT(
             dataFetcher
-              .historicalPrices(equity, date.minusDays(parameters.horizon), date)
+              .historicalPrices(equity, from, to)
               .map(_.map(_.map(_.adjusted))))
         } yield standardDeviation(priceHistory)).run
+      }
     }
   }
 
