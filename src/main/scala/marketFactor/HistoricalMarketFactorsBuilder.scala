@@ -2,7 +2,7 @@ package marketFactor
 
 import java.util.Calendar
 
-import breeze.numerics.sqrt
+import breeze.stats._
 import data.DataFetcher
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import marketFactor.OneDayForecastMarketFactorsGenerator.CurrentFactors
@@ -14,12 +14,17 @@ import scalaz.OptionT
 import scalaz.std.FutureInstances
 
 /**
-  * Created by dennis on 21/8/16.
+  * Builds market factors based on the data from the data fetcher.
+  * @param dataFetcher data to be used for the market factors
   */
-case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher) extends MarketFactorsBuilder with FutureInstances {
+case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher)
+    extends MarketFactorsBuilder
+    with FutureInstances {
   override def oneDayForecastMarketFactors(portfolio: Portfolio, date: Calendar)(
       implicit parameters: MarketFactorsParameters)
     : Future[OneDayMarketForecastFactorsGenerator] = {
+
+    /* Equities in alphabetical order */
     val equities: List[Equity] = portfolio.positions
       .map(_.instrument)
       .map {
@@ -27,24 +32,29 @@ case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher) extends Mark
       }
       .sortBy(_.ticker)
 
-    val from = date
-    val to = date.clone().asInstanceOf[Calendar]
-    to.add(Calendar.DATE, -parameters.horizon)
-
+    /* Current factors */
     val mapCurrentFactors: Map[Equity, Future[Option[CurrentFactors]]] = equities.map(equity => {
+      val from = date.clone().asInstanceOf[Calendar]
+      from.add(Calendar.DATE, -parameters.horizon)
+      val to = date.clone().asInstanceOf[Calendar]
+
+      /* Build current factors for equity based on data from fetcher */
       val futureCurrentFactors = (
         for {
           price <- OptionT(dataFetcher.historicalPrice(equity, date)).map(_.adjusted)
           priceHistory <- OptionT(
-            dataFetcher
-              .historicalPrices(equity, from, to)
-              .map(_.map(_.map(_.adjusted))))
-        } yield CurrentFactors(price, standardDeviation(priceHistory), priceHistory)
+            dataFetcher.historicalPrices(equity, from, to).map(_.map(_.map(_.adjusted))))
+        } yield CurrentFactors(price, stddev(priceHistory), priceHistory)
       ).run
+
+      futureCurrentFactors onSuccess {
+        case Some(a) => println(equity + " " + a)
+      }
 
       equity -> futureCurrentFactors
     })(scala.collection.breakOut)
 
+    /* Convert map of future to future of map */
     val futureCurrentFactors = Future
       .sequence(mapCurrentFactors.map(entry => entry._2.map(i => (entry._1, i))))
       .map(_.toMap)
@@ -62,26 +72,15 @@ case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher) extends Mark
       }
 
       override protected def volatility(equity: Equity): Future[Option[Double]] = {
-        val from = date
+        val from = date.clone().asInstanceOf[Calendar]
+        from.add(Calendar.DATE, -parameters.horizon)
         val to = date.clone().asInstanceOf[Calendar]
-        to.add(Calendar.DATE, -parameters.horizon)
 
         (for {
           priceHistory <- OptionT(
-            dataFetcher
-              .historicalPrices(equity, from, to)
-              .map(_.map(_.map(_.adjusted))))
-        } yield standardDeviation(priceHistory)).run
+            dataFetcher.historicalPrices(equity, from, to).map(_.map(_.map(_.adjusted))))
+        } yield stddev(priceHistory)).run
       }
     }
-  }
-
-  private def standardDeviation(priceHistory: Vector[Double]): Double = {
-    val sum = priceHistory.sum
-    val length = priceHistory.length
-    val adjustedSumOfSquares =
-      priceHistory.foldLeft(0.0)((acc, p) => acc + (p - sum / length) * (p - sum / length))
-
-    sqrt(adjustedSumOfSquares / (length - 1))
   }
 }

@@ -2,10 +2,11 @@ package marketFactor
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
+import org.apache.commons.math3.random.CorrelatedRandomVectorGenerator
 
 /**
-  * Created by dennis on 16/8/16.
+  * Stream of market factors.
   */
 trait MarketFactorsGenerator {
-  def factors: Option[Source[MarketFactors, NotUsed]]
+  def factors: Option[Source[CorrelatedRandomVectorGenerator, NotUsed]#Repr[MarketFactors]]
 }

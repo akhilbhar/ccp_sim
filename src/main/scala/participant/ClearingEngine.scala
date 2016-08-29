@@ -4,7 +4,7 @@ import akka.actor.ActorRef
 import model.Instrument
 
 /**
-  * Created by dennis on 20/8/16.
+  * Performs transactions.
   */
 trait ClearingEngine {
   def performTransaction(instrument: Instrument,

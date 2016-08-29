@@ -6,6 +6,9 @@ import model.{Equity, Price}
 
 import scala.concurrent.Future
 
+/**
+  * Trait for fetching historical date.
+  */
 trait DataFetcher {
   def historicalPrice(equity: Equity, date: Calendar): Future[Option[Price]]
 

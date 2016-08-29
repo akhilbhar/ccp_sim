@@ -12,23 +12,21 @@ import scala.concurrent.Future
 import scalaz.OptionT
 import scalaz.std.FutureInstances
 
-// ??
+/**
+  * Fetches data from Yahoo Finance
+  */
 case object YahooHistoricalDataFetcher extends DataFetcher with FutureInstances {
   override def historicalPrice(equity: Equity, date: Calendar): Future[Option[Price]] = {
-    val from = date
+    val from = date.clone.asInstanceOf[Calendar]
     val to = date.clone().asInstanceOf[Calendar]
-    to.add(Calendar.DATE, 1)
+    from.add(Calendar.DAY_OF_MONTH, -1)
 
-     OptionT(historicalPrices(equity, from, to)).map(_.head).run
+    OptionT(historicalPrices(equity, from, to)).map(_.headOption).run.map(_.flatten)
   }
 
   override def historicalPrices(equity: Equity,
                                 from: Calendar,
                                 to: Calendar): Future[Option[Vector[Price]]] = {
-    val from = Calendar.getInstance()
-    val to = Calendar.getInstance()
-    from.add(Calendar.DATE, -1) // from 1 year ago
-
     Future {
       Option(YahooFinance.get(equity.ticker, from, to, Interval.DAILY))
         .map(stockToHistoricalPricesVector)

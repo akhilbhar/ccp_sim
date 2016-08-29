@@ -5,9 +5,6 @@ import model.Equity
 
 import scala.concurrent.Future
 
-/**
-  * Created by dennis on 15/8/16.
-  */
 sealed trait MarketFactor
 
 object MarketFactor {
@@ -15,6 +12,9 @@ object MarketFactor {
   case class Volatility(equity: Equity) extends MarketFactor
 }
 
+/**
+  * Provides the value of market factors.
+  */
 trait MarketFactors {
   def apply(factor: MarketFactor): Future[Option[Double]] = factor match {
     case Price(equity) => price(equity)

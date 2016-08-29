@@ -1,10 +1,11 @@
-import java.util.Calendar
+import java.util.GregorianCalendar
 
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.util.Timeout
 import data.YahooHistoricalDataFetcher
 import marketFactor.HistoricalMarketFactorsBuilder
+import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import model.Equity
 import participant.{BilateralClearingEngine, Client}
 import pricer.PortfolioPricingError
@@ -48,36 +49,53 @@ object Sim extends App {
   //  println(price)
 
   val actorSystem = ActorSystem("Default")
-  val marketFactorsBuilder = HistoricalMarketFactorsBuilder(YahooHistoricalDataFetcher)
+  val date = new GregorianCalendar(2016, 0, 29)
+  val factors = HistoricalMarketFactorsBuilder(YahooHistoricalDataFetcher).marketFactors(date)(
+    new MarketFactorsParameters)
+
+  val builder = HistoricalMarketFactorsBuilder(YahooHistoricalDataFetcher)
   val name = "Dennis"
 
 //  val buyer = actorSystem.actorOf(Props(wire[Client]))
 //  val seller = actorSystem.actorOf(Props(wire[Client]))
-  val buyer = actorSystem.actorOf(Client.props("Dennis", marketFactorsBuilder))
-  val seller = actorSystem.actorOf(Client.props("Saskia", marketFactorsBuilder))
-  val instrument = Equity("AAPL")
+  val buyer = actorSystem.actorOf(Client.props("Dennis"))
+  val seller = actorSystem.actorOf(Client.props("Saskia"))
 
-  BilateralClearingEngine.performTransaction(instrument, 1, buyer, seller)
+  val apple = Equity("AAPL")
+  val google = Equity("GOOG")
+  val microsoft = Equity("MSFT")
+//
+  BilateralClearingEngine.performTransaction(apple, 1, buyer, seller)
+  BilateralClearingEngine.performTransaction(google, 1, buyer, seller)
+//  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
+//  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
+//  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
+
+
+  Thread.sleep(2000)
 
   implicit val timeout = Timeout(5 seconds)
 //
-  ask(buyer, Client.Value).mapTo[PortfolioPricingError \/ Double] onComplete {
-    case Success(v) => println(v)
-    case Failure(e) => println(e.getMessage)
-  }
+////  ask(buyer, Client.Value(factors)).mapTo[PortfolioPricingError \/ Double] onComplete {
+////    case Success(v) => println("Value: " + v)
+////    case Failure(e) => println("Error " + e.getCause)
+////  }
 //
-  val from = Calendar.getInstance();
-  val to = Calendar.getInstance();
-  from.add(Calendar.DATE, -1); // from 1 year ago
-
-  val foo = YahooHistoricalDataFetcher.historicalPrice(Equity("AAPL"), from)
-
-  foo onComplete {
-    case Success(d) => println(d.getOrElse("Shit"))
-    case Failure(f) => println(f.getMessage)
+  ask(buyer, Client.MonteCarlo(builder)).mapTo[Option[PortfolioPricingError \/ Double]] onComplete {
+    case Success(ov) => println("Monte carlo: " + ov.getOrElse("Shit"))
+    case Failure(e) => println(e)
   }
 
-//  val google = YahooFinance.get("AAPL", from, to, Interval.DAILY)
+//  val from: Calendar = new GregorianCalendar(2016, 0, 29)
+//  from.add(Calendar.DAY_OF_MONTH, -4)
+//  val to: Calendar = new GregorianCalendar(2016, 0, 29)
+  //from.add(Calendar.DAY_OF_MONTH, -1); // from 1 year ago
+
+//  val from = new GregorianCalendar(2016, 0, 29)
+//  val to = from.clone().asInstanceOf[Calendar]
+//  from.add(Calendar.DAY_OF_MONTH, -1)
 //
-//  println(google.getHistory)
+//  val stock = YahooFinance.get("AAPL", from, to, Interval.DAILY)
+//
+//  stock.print()
 }
