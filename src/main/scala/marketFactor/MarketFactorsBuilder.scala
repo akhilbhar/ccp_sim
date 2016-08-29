@@ -11,6 +11,7 @@ import scala.concurrent.Future
   * Provides market factors for the valuation.
   */
 trait MarketFactorsBuilder {
+
   /**
     * Creates a generator of market factors based on a Monte-Carlo simulation.
     *
@@ -20,7 +21,7 @@ trait MarketFactorsBuilder {
     * @return a generator of forecasted market factors
     */
   def oneDayForecastMarketFactors(portfolio: Portfolio, date: Calendar)(
-    implicit parameters: MarketFactorsParameters): Future[MarketFactorsGenerator]
+      implicit parameters: MarketFactorsParameters): Future[MarketFactorsGenerator]
 
   /**
     * Provides market factors for the provided date
@@ -28,8 +29,7 @@ trait MarketFactorsBuilder {
     * @param parameters parameters for the computation
     * @return market factors for the provided date
     */
-  def marketFactors(date: Calendar)(
-    implicit parameters: MarketFactorsParameters): MarketFactors
+  def marketFactors(date: Calendar)(implicit parameters: MarketFactorsParameters): MarketFactors
 }
 
 object MarketFactorsBuilder {

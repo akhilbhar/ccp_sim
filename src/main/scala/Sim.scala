@@ -81,8 +81,8 @@ object Sim extends App {
 ////    case Failure(e) => println("Error " + e.getCause)
 ////  }
 //
-  ask(buyer, Client.MonteCarlo(builder)).mapTo[Option[PortfolioPricingError \/ Double]] onComplete {
-    case Success(ov) => println("Monte carlo: " + ov.getOrElse("Shit"))
+  ask(buyer, Client.MonteCarlo(builder)).mapTo[PortfolioPricingError \/ Double] onComplete {
+    case Success(ov) => println("Monte carlo: " + ov)
     case Failure(e) => println(e)
   }
 

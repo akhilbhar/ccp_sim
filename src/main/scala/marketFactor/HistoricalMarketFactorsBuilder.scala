@@ -5,13 +5,14 @@ import java.util.Calendar
 import breeze.stats._
 import data.DataFetcher
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
-import marketFactor.OneDayForecastMarketFactorsGenerator.CurrentFactors
+import marketFactor.MarketFactorsGenerator.CurrentFactors
 import model.{Equity, Portfolio}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scalaz.OptionT
 import scalaz.std.FutureInstances
+
 
 /**
   * Builds market factors based on the data from the data fetcher.
@@ -22,7 +23,7 @@ case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher)
     with FutureInstances {
   override def oneDayForecastMarketFactors(portfolio: Portfolio, date: Calendar)(
       implicit parameters: MarketFactorsParameters)
-    : Future[OneDayMarketForecastFactorsGenerator] = {
+    : Future[MarketFactorsGenerator] = {
 
     /* Equities in alphabetical order */
     val equities: List[Equity] = portfolio.positions
@@ -61,7 +62,7 @@ case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher)
 
     for {
       currentFactors <- futureCurrentFactors
-    } yield OneDayMarketForecastFactorsGenerator(date, currentFactors)
+    } yield OneDayGBMMarketFactorsGenerator(date, currentFactors)
   }
 
   override def marketFactors(date: Calendar)(

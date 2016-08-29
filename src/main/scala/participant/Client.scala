@@ -15,9 +15,8 @@ import pricer.{PortfolioPricer, PortfolioPricingError}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
+import scalaz.\/
 import scalaz.std.{FutureInstances, OptionInstances}
-import scalaz.syntax.traverse._
-import scalaz.{OptionT, \/}
 
 /**
   * Client.
@@ -52,16 +51,23 @@ case class Client(name: String) extends Actor with FutureInstances with OptionIn
     println("Added " + position.instrument)
   }
 
-  private def monteCarlo(builder: MarketFactorsBuilder): Future[Option[PortfolioPricingError \/ Double]] = {
+  private def monteCarlo(
+      builder: MarketFactorsBuilder): Future[PortfolioPricingError \/ Double] = {
     val date = new GregorianCalendar(2016, 0, 29)
 
     implicit val materializer = ActorMaterializer()
 
-    val fGen = builder
-      .oneDayForecastMarketFactors(portfolio, date)(new MarketFactorsParameters(horizon = 5))
-      .map(_.factors.map(_.toMat(Sink.head)(Keep.right).run()))
+    val marketFactors = builder
+      .oneDayForecastMarketFactors(portfolio, date)(MarketFactorsParameters(horizon = 5))
+      .flatMap(_.factors.toMat(Sink.head)(Keep.right).run)
 
-    OptionT(fGen).map(_.flatMap(value(_))).run.flatMap(_.sequenceU)
+//    val fGen = builder
+//      .oneDayForecastMarketFactors(portfolio, date)(new MarketFactorsParameters(horizon = 5))
+//      .map(_.factors.map(_.toMat(Sink.head)(Keep.right).run()))
+
+    marketFactors.flatMap(value(_))
+
+//    OptionT(fGen).map(_.flatMap(value(_))).run.flatMap(_.sequenceU)
   }
 }
 
