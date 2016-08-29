@@ -72,21 +72,21 @@ object Sim extends App {
 //  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
 
 
-  Thread.sleep(2000)
+  Thread.sleep(1000)
 
   implicit val timeout = Timeout(5 seconds)
-//
-////  ask(buyer, Client.Value(factors)).mapTo[PortfolioPricingError \/ Double] onComplete {
-////    case Success(v) => println("Value: " + v)
-////    case Failure(e) => println("Error " + e.getCause)
-////  }
-//
-  ask(buyer, Client.MonteCarlo(builder)).mapTo[PortfolioPricingError \/ Double] onComplete {
-    case Success(ov) => println("Monte carlo: " + ov)
-    case Failure(e) => println(e)
+
+  ask(buyer, Client.Value(factors)).mapTo[PortfolioPricingError \/ Double] onComplete {
+    case Success(v) => println(s"Value: $v")
+    case Failure(e) => println(s"Error $e")
   }
 
-//  val from: Calendar = new GregorianCalendar(2016, 0, 29)
+  ask(buyer, Client.MonteCarlo(builder)).mapTo[PortfolioPricingError \/ Double] onComplete {
+    case Success(v) => println(s"Monte carlo: $v")
+    case Failure(e) => println(s"Error: $e")
+  }
+
+  //  val from: Calendar = new GregorianCalendar(2016, 0, 29)
 //  from.add(Calendar.DAY_OF_MONTH, -4)
 //  val to: Calendar = new GregorianCalendar(2016, 0, 29)
   //from.add(Calendar.DAY_OF_MONTH, -1); // from 1 year ago

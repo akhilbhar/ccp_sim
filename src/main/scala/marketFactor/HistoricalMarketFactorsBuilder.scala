@@ -48,10 +48,6 @@ case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher)
         } yield CurrentFactors(price, stddev(priceHistory), priceHistory)
       ).run
 
-      futureCurrentFactors onSuccess {
-        case Some(a) => println(equity + " " + a)
-      }
-
       equity -> futureCurrentFactors
     })(scala.collection.breakOut)
 

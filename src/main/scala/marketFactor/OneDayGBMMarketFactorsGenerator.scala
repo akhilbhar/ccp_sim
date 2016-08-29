@@ -14,7 +14,8 @@ import scala.concurrent.Future
 /**
   * Created by dennis on 29/8/16.
   */
-case class OneDayGBMMarketFactorsGenerator(date: Calendar, currentFactors: Map[Equity, Option[CurrentFactors]])
+case class OneDayGBMMarketFactorsGenerator(date: Calendar,
+                                           currentFactors: Map[Equity, Option[CurrentFactors]])
     extends MarketFactorsGenerator {
   override def factors: Source[MarketFactors, NotUsed] = {
     val generator = Gaussian(0, 1)
@@ -28,11 +29,10 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar, currentFactors: Map[E
       {
         (equity, for {
           currentPrice <- currentFactors(equity).map(_.price)
-          volatility <- currentFactors(equity).map(_.volatility)
           historicalPrices <- currentFactors(equity).map(_.priceHistory)
-          historicalMean = mean(historicalPrices)
-          volatility <- currentFactors(equity).map(_.volatility)
-        } yield generatePrice(currentPrice, historicalMean, volatility, generator.draw()))
+          historicalReturnMean = meanOfChange(historicalPrices)
+          historicalReturnVolatility = volatilityOfChange(historicalPrices)
+        } yield generatePrice(currentPrice, historicalReturnMean, historicalReturnVolatility, generator.draw()))
       }
     })(scala.collection.breakOut)
 
@@ -47,6 +47,19 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar, currentFactors: Map[E
 
     currentPrice + change
   }
+
+  private def change(data: Vector[Double]): Vector[Double] = {
+    data
+      .sliding(2)
+      .map {
+        case Seq(a, b, _ *) => (a - b) / b
+      }
+      .toVector
+  }
+
+  private def meanOfChange(data: Vector[Double]): Double = mean(change(data))
+
+  private def volatilityOfChange(data: Vector[Double]): Double = stddev(change(data))
 
   case class GeneratedMarketFactors(generatedPrices: Map[Equity, Option[Double]])
       extends MarketFactors {
