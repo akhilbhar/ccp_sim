@@ -3,6 +3,7 @@ package participant
 import java.util.{Calendar, GregorianCalendar}
 
 import `var`.ValueAtRiskCalculator
+import `var`.ValueAtRiskCalculator.VaR
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.pattern.pipe
 import akka.stream.ActorMaterializer
@@ -45,8 +46,8 @@ case class Client(name: String) extends Actor with FutureInstances with OptionIn
       thresholdLoss: Double,
       date: Calendar,
       simulation: Long,
-      builder: MarketFactorsBuilder): Future[List[PortfolioPricingError] \/ Double] = {
-    ValueAtRiskCalculator(thresholdLoss, simulation)(builder, 10, ActorSystem())
+      builder: MarketFactorsBuilder): Future[List[PortfolioPricingError] \/ VaR] = {
+    ValueAtRiskCalculator(thresholdLoss, simulation)(builder, 100, ActorSystem())
       .run(portfolio, date)
   }
 
@@ -56,7 +57,7 @@ case class Client(name: String) extends Actor with FutureInstances with OptionIn
     implicit val materializer = ActorMaterializer()
 
     val marketFactors = builder
-      .oneDayForecastMarketFactors(portfolio, date)(MarketFactorsParameters(horizon = 3000))
+      .oneDayForecastMarketFactors(portfolio, date)(MarketFactorsParameters(horizon = 5))
       .flatMap(_.factors.toMat(Sink.head)(Keep.right).run)
 
     marketFactors.flatMap(value(_))

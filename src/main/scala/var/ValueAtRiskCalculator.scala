@@ -2,6 +2,7 @@ package `var`
 
 import java.util.Calendar
 
+import `var`.ValueAtRiskCalculator.VaR
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Balance, Flow, GraphDSL, Keep, Merge, Sink}
@@ -15,7 +16,7 @@ import pricer.{PortfolioPricer, PortfolioPricingError}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scalaz.Scalaz._
-import scalaz.{-\/, \/, \/-, _}
+import scalaz.{-\/, \/, \/-}
 
 /**
   * Created by dennis on 30/8/16.
@@ -24,11 +25,11 @@ case class ValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)(
     implicit builder: MarketFactorsBuilder,
     clusterSize: Int = 10,
     system: ActorSystem) {
-  def run(portfolio: Portfolio, date: Calendar): Future[List[PortfolioPricingError] \/ Double] = {
+  def run(portfolio: Portfolio, date: Calendar): Future[List[PortfolioPricingError] \/ VaR] = {
     implicit val materializer = ActorMaterializer()
 
     val resultsF = builder
-      .oneDayForecastMarketFactors(portfolio, date)(MarketFactorsParameters(horizon = 3000))
+      .oneDayForecastMarketFactors(portfolio, date)(MarketFactorsParameters(horizon = 300))
       .flatMap(
         _.factors
           .take(simulations)
@@ -38,12 +39,10 @@ case class ValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)(
       .flatMap(Future.sequence(_))
       .map(_.toList)
 
-    val groupedResultsF = resultsF
-      .map(_.separate)
-      .map(t => { (t._1, t._2.sorted) })
+    val groupedResultsF = resultsF.map(_.separate).map(t => { (t._1, t._2.sorted) })
 
     groupedResultsF.map({
-      case t if t._1.isEmpty => \/-(t._2(round(thresholdLoss * simulations).asInstanceOf[Int]))
+      case t if t._1.isEmpty => \/-(VaR(t._2(round(thresholdLoss * simulations).asInstanceOf[Int] - 1), t._2))
       case t => -\/(t._1)
     })
   }
@@ -70,4 +69,8 @@ case class ValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)(
     Flow[MarketFactors].map(implicit factors => {
       PortfolioPricer.price(portfolio)
     })
+}
+
+object ValueAtRiskCalculator {
+  case class VaR(valueAtRisk: Double, outcomes: List[Double])
 }

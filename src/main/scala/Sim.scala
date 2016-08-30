@@ -67,9 +67,9 @@ object Sim extends App {
 //
   BilateralClearingEngine.performTransaction(apple, 1, buyer, seller)
   BilateralClearingEngine.performTransaction(google, 1, buyer, seller)
-//  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
-//  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
-//  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
+  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
+  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
+  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
 
   Thread.sleep(1000)
 
@@ -85,22 +85,9 @@ object Sim extends App {
 //    case Failure(e) => println(s"Error: $e")
 //  }
 
-  ask(buyer, Client.ValueAtRisk(0.05, Calendar.getInstance(), 10000, builder))
+  ask(buyer, Client.ValueAtRisk(0.05, Calendar.getInstance(), 100, builder))
     .mapTo[List[PortfolioPricingError] \/ Double] onComplete {
-    case Success(v) => println(s"Var: $v")
+    case Success(v) => println(s"VaR: $v")
     case Failure(e) => println(s"Error: $e")
   }
-
-  //  val from: Calendar = new GregorianCalendar(2016, 0, 29)
-//  from.add(Calendar.DAY_OF_MONTH, -4)
-//  val to: Calendar = new GregorianCalendar(2016, 0, 29)
-  //from.add(Calendar.DAY_OF_MONTH, -1); // from 1 year ago
-
-//  val from = new GregorianCalendar(2016, 0, 29)
-//  val to = from.clone().asInstanceOf[Calendar]
-//  from.add(Calendar.DAY_OF_MONTH, -1)
-//
-//  val stock = YahooFinance.get("AAPL", from, to, Interval.DAILY)
-//
-//  stock.print()
 }
