@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ScalaCompilerConfiguration">
-    <profile name="SBT 1" modules="ccp_sim_scala" />
+    <profile name="SBT 1" modules="ccp_sim_scala">
+      <option name="postfixOps" value="true" />
+    </profile>
   </component>
 </project>

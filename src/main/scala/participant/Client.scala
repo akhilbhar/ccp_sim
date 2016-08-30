@@ -1,8 +1,9 @@
 package participant
 
-import java.util.GregorianCalendar
+import java.util.{Calendar, GregorianCalendar}
 
-import akka.actor.{Actor, Props}
+import `var`.ValueAtRiskCalculator
+import akka.actor.{Actor, ActorSystem, Props}
 import akka.pattern.pipe
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink}
@@ -26,6 +27,7 @@ case class Client(name: String) extends Actor with FutureInstances with OptionIn
 
   override def receive: Receive = {
     case Value(factors) => pipe(value(factors)) to sender
+    case ValueAtRisk(t, d, s, b) => pipe(valueAtRisk(t, d, s, b)) to sender
     case MonteCarlo(builder) => pipe(monteCarlo(builder)) to sender
     case AddPosition(p) => addPosition(p)
   }
@@ -37,6 +39,15 @@ case class Client(name: String) extends Actor with FutureInstances with OptionIn
   private def addPosition(position: Position): Unit = {
     portfolio = portfolio.addPosition(position)
     println("Added " + position.instrument)
+  }
+
+  private def valueAtRisk(
+      thresholdLoss: Double,
+      date: Calendar,
+      simulation: Long,
+      builder: MarketFactorsBuilder): Future[List[PortfolioPricingError] \/ Double] = {
+    ValueAtRiskCalculator(thresholdLoss, simulation)(builder, 10, ActorSystem())
+      .run(portfolio, date)
   }
 
   private def monteCarlo(builder: MarketFactorsBuilder): Future[PortfolioPricingError \/ Double] = {
@@ -60,4 +71,8 @@ object Client {
   case class AddPosition(position: Position)
   case class Value(factors: MarketFactors)
   case class MonteCarlo(builder: MarketFactorsBuilder)
+  case class ValueAtRisk(thresholdLoss: Double,
+                         date: Calendar,
+                         simulation: Long,
+                         builder: MarketFactorsBuilder)
 }

@@ -1,4 +1,4 @@
-import java.util.GregorianCalendar
+import java.util.{Calendar, GregorianCalendar}
 
 import akka.actor.ActorSystem
 import akka.pattern.ask
@@ -71,18 +71,23 @@ object Sim extends App {
 //  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
 //  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
 
-
   Thread.sleep(1000)
 
-  implicit val timeout = Timeout(5 seconds)
+  implicit val timeout = Timeout(60 seconds)
 
-  ask(buyer, Client.Value(factors)).mapTo[PortfolioPricingError \/ Double] onComplete {
-    case Success(v) => println(s"Value: $v")
-    case Failure(e) => println(s"Error $e")
-  }
+//  ask(buyer, Client.Value(factors)).mapTo[PortfolioPricingError \/ Double] onComplete {
+//    case Success(v) => println(s"Value: $v")
+//    case Failure(e) => println(s"Error $e")
+//  }
+//
+//  ask(buyer, Client.MonteCarlo(builder)).mapTo[PortfolioPricingError \/ Double] onComplete {
+//    case Success(v) => println(s"Monte carlo: $v")
+//    case Failure(e) => println(s"Error: $e")
+//  }
 
-  ask(buyer, Client.MonteCarlo(builder)).mapTo[PortfolioPricingError \/ Double] onComplete {
-    case Success(v) => println(s"Monte carlo: $v")
+  ask(buyer, Client.ValueAtRisk(0.05, Calendar.getInstance(), 10000, builder))
+    .mapTo[List[PortfolioPricingError] \/ Double] onComplete {
+    case Success(v) => println(s"Var: $v")
     case Failure(e) => println(s"Error: $e")
   }
 
