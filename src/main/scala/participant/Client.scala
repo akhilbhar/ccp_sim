@@ -1,15 +1,14 @@
 package participant
 
-import java.util.{Calendar, GregorianCalendar}
+import java.util.Calendar
 
-import `var`.ValueAtRiskCalculator
-import `var`.ValueAtRiskCalculator.VaR
+import `var`.OneDayValueAtRiskCalculator
+import `var`.OneDayValueAtRiskCalculator.VaR
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.pattern.pipe
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Keep, Sink}
+import com.softwaremill.macwire._
+import marketFactor.MarketFactorsBuilder
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
-import marketFactor.{MarketFactors, MarketFactorsBuilder}
 import model.{Portfolio, Position}
 import participant.Client._
 import pricer.{PortfolioPricer, PortfolioPricingError}
@@ -23,18 +22,21 @@ import scalaz.std.{FutureInstances, OptionInstances}
   * Client.
   * @param name name of the client.
   */
-case class Client(name: String) extends Actor with FutureInstances with OptionInstances {
+case class Client(name: String, builder: MarketFactorsBuilder, parameters: MarketFactorsParameters)
+    extends Actor
+    with FutureInstances
+    with OptionInstances {
   private var portfolio: Portfolio = Portfolio(List())
 
   override def receive: Receive = {
-    case Value(factors) => pipe(value(factors)) to sender
-    case ValueAtRisk(t, d, s, b) => pipe(valueAtRisk(t, d, s, b)) to sender
-    case MonteCarlo(builder) => pipe(monteCarlo(builder)) to sender
+    case Value => pipe(value) to sender
+    case ValueAtRisk(thresholdLoss, simulations) =>
+      pipe(valueAtRisk(thresholdLoss, simulations)) to sender
     case AddPosition(p) => addPosition(p)
   }
 
-  private def value(implicit factors: MarketFactors): Future[PortfolioPricingError \/ Double] = {
-    PortfolioPricer.price(portfolio)
+  private def value: Future[PortfolioPricingError \/ Double] = {
+    PortfolioPricer.price(portfolio)(builder.marketFactors(Calendar.getInstance)(parameters))
   }
 
   private def addPosition(position: Position): Unit = {
@@ -42,38 +44,25 @@ case class Client(name: String) extends Actor with FutureInstances with OptionIn
     println("Added " + position.instrument)
   }
 
-  private def valueAtRisk(
-      thresholdLoss: Double,
-      date: Calendar,
-      simulation: Long,
-      builder: MarketFactorsBuilder): Future[List[PortfolioPricingError] \/ VaR] = {
-    ValueAtRiskCalculator(thresholdLoss, simulation)(builder, 100, ActorSystem())
-      .run(portfolio, date)
-  }
+  private def valueAtRisk(thresholdLoss: Double,
+                          simulations: Long): Future[List[PortfolioPricingError] \/ VaR] = {
+    val clusterSize = 100
 
-  private def monteCarlo(builder: MarketFactorsBuilder): Future[PortfolioPricingError \/ Double] = {
-    val date = new GregorianCalendar(2016, 0, 29)
-
-    implicit val materializer = ActorMaterializer()
-
-    val marketFactors = builder
-      .oneDayForecastMarketFactors(portfolio, date)(MarketFactorsParameters(horizon = 5))
-      .flatMap(_.factors.toMat(Sink.head)(Keep.right).run)
-
-    marketFactors.flatMap(value(_))
+    OneDayValueAtRiskCalculator(thresholdLoss, simulations)(
+      builder,
+      parameters,
+      ActorSystem(),
+      clusterSize).run(portfolio, Calendar.getInstance)
   }
 }
 
 object Client {
-
-  def props(name: String): Props =
-    Props(Client(name))
+  def props(name: String,
+            builder: MarketFactorsBuilder,
+            parameters: MarketFactorsParameters): Props =
+    Props(wire[Client])
 
   case class AddPosition(position: Position)
-  case class Value(factors: MarketFactors)
-  case class MonteCarlo(builder: MarketFactorsBuilder)
-  case class ValueAtRisk(thresholdLoss: Double,
-                         date: Calendar,
-                         simulation: Long,
-                         builder: MarketFactorsBuilder)
+  case object Value
+  case class ValueAtRisk(thresholdLoss: Double, simulations: Long)
 }

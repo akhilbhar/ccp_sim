@@ -1,5 +1,3 @@
-import java.util.{Calendar, GregorianCalendar}
-
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.util.Timeout
@@ -49,43 +47,33 @@ object Sim extends App {
   //  println(price)
 
   val actorSystem = ActorSystem("Default")
-  val date = new GregorianCalendar(2016, 0, 29)
-  val factors = HistoricalMarketFactorsBuilder(YahooHistoricalDataFetcher).marketFactors(date)(
-    new MarketFactorsParameters)
 
   val builder = HistoricalMarketFactorsBuilder(YahooHistoricalDataFetcher)
-  val name = "Dennis"
+  val parameters = new MarketFactorsParameters
 
 //  val buyer = actorSystem.actorOf(Props(wire[Client]))
 //  val seller = actorSystem.actorOf(Props(wire[Client]))
-  val buyer = actorSystem.actorOf(Client.props("Dennis"))
-  val seller = actorSystem.actorOf(Client.props("Saskia"))
+  val buyer = actorSystem.actorOf(Client.props("Dennis", builder, parameters))
+  val seller = actorSystem.actorOf(Client.props("Saskia", builder, parameters))
 
   val apple = Equity("AAPL")
   val google = Equity("GOOG")
   val microsoft = Equity("MSFT")
-//
+
   BilateralClearingEngine.performTransaction(apple, 1, buyer, seller)
   BilateralClearingEngine.performTransaction(google, 1, buyer, seller)
   BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
   BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
   BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
 
-  Thread.sleep(1000)
-
   implicit val timeout = Timeout(60 seconds)
 
-//  ask(buyer, Client.Value(factors)).mapTo[PortfolioPricingError \/ Double] onComplete {
-//    case Success(v) => println(s"Value: $v")
-//    case Failure(e) => println(s"Error $e")
-//  }
-//
-//  ask(buyer, Client.MonteCarlo(builder)).mapTo[PortfolioPricingError \/ Double] onComplete {
-//    case Success(v) => println(s"Monte carlo: $v")
-//    case Failure(e) => println(s"Error: $e")
-//  }
+  ask(buyer, Client.Value).mapTo[PortfolioPricingError \/ Double] onComplete {
+    case Success(v) => println(s"Value: $v")
+    case Failure(e) => println(s"Error $e")
+  }
 
-  ask(buyer, Client.ValueAtRisk(0.05, Calendar.getInstance(), 100, builder))
+  ask(buyer, Client.ValueAtRisk(0.05, 10000))
     .mapTo[List[PortfolioPricingError] \/ Double] onComplete {
     case Success(v) => println(s"VaR: $v")
     case Failure(e) => println(s"Error: $e")
