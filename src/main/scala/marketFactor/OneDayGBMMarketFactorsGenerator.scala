@@ -4,7 +4,7 @@ import java.util.Calendar
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 import breeze.linalg.{DenseMatrix, DenseVector, cholesky}
-import breeze.numerics.sqrt
+import breeze.numerics.exp
 import breeze.stats._
 import breeze.stats.distributions.Gaussian
 import marketFactor.MarketFactorsGenerator.CurrentFactors
@@ -15,7 +15,9 @@ import scalaz.OptionT
 import scalaz.std.ListInstances
 
 /**
-  * Created by dennis on 29/8/16.
+  * Computes a one day simulation of the market factors using the Geometric Brownian Motion method.
+  * @param date date until which data has to be taken in account.
+  * @param currentFactors the current market factors.
   */
 case class OneDayGBMMarketFactorsGenerator(date: Calendar,
                                            currentFactors: Map[Equity, Option[CurrentFactors]])
@@ -28,6 +30,11 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
     source.map(toMarketFactors)
   }
 
+  /**
+    * Transforms the random input in random market factors.
+    * @param generator random generator from which to create market factors.
+    * @return randomly generated market factors.
+    */
   private def toMarketFactors(generator: Gaussian): Option[MarketFactors] = {
     val randomVector =
       DenseVector[Double]((1 to currentFactors.keys.size).map(_ => generator.draw).toArray)
@@ -56,15 +63,26 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
     generatedPrices.map(GeneratedMarketFactors)
   }
 
+  /**
+    * Generates a run of a simulation using the closed form of the Geometric Brownian Motion process.
+    * @param currentPrice the current price of the asset.
+    * @param historicalMean the historical mean return of the asset
+    * @param volatility the volatility of the asset's return
+    * @param randomValue random value
+    * @return
+    */
   private def generatePrice(currentPrice: Double,
                             historicalMean: Double,
                             volatility: Double,
                             randomValue: Double): Double = {
-    val change = currentPrice * (historicalMean * 1 + volatility * randomValue * sqrt(1))
-
-    currentPrice + change
+    currentPrice * exp((historicalMean - (volatility * volatility) / 2) + volatility * randomValue)
   }
 
+  /**
+    * Creates a Vector with the returns.
+    * @param data data on which to compute the returns.
+    * @return returns
+    */
   private def change(data: Vector[Double]): Vector[Double] = {
     data
       .sliding(2)
@@ -74,10 +92,24 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
       .toVector
   }
 
+  /**
+    * Computes the mean of the returns of Vector data
+    * @param data the data
+    * @return the mean of the changes in data
+    */
   private def meanOfChange(data: Vector[Double]): Double = mean(change(data))
 
+  /**
+    * Computes the standard deviation of the change in data.
+    * @param data the data
+    * @return the standard deviation of the changes in data.
+    */
   private def volatilityOfChange(data: Vector[Double]): Double = stddev(change(data))
 
+  /**
+    * Computes the cholesky factorization of the price historical in the current factors.
+    * @return cholesky factorization of the historical prices
+    */
   private def choleskyFactorizationO: Option[DenseMatrix[Double]] = {
 
     /**
@@ -99,7 +131,7 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
       rows = priceHistory.length / cols
 
       priceMat = new DenseMatrix[Double](rows, cols, priceHistory.toArray)
-      covMat = covmat(priceMat) // new DenseMatrix[Double](2,2, Array(1.0,0,0,1.0))
+      covMat = covmat(priceMat)
     } yield cholesky(covMat)
   }
 
