@@ -43,16 +43,18 @@ case class OneDayValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)
   def run(portfolio: Portfolio, date: Calendar): Future[List[PortfolioPricingError] \/ VaR] = {
     implicit val materializer = ActorMaterializer()
 
-    val resultsF = builder
-      .oneDayForecastMarketFactors(portfolio, date)
-      .flatMap(
-        _.factors
-          .take(simulations)
-          .via(balancer(simulateOneDayPrice(portfolio), clusterSize))
-          .toMat(Sink.seq)(Keep.right)
-          .run())
-      .flatMap(Future.sequence(_))
-      .map(_.toList)
+    val sourceF = builder.oneDayForecastMarketFactors(portfolio, date).map(_.factors)
+
+    val resultsF =
+      sourceF
+        .flatMap(
+          _.take(simulations)
+            .via(balancer(simulateOneDayPrice(portfolio), clusterSize))
+            .toMat(Sink.seq)(Keep.right)
+            .run())
+        .map(_.flatten)
+        .flatMap(Future.sequence(_))
+        .map(_.toList)
 
     val groupedResultsF = resultsF.map(_.separate).map(t => { (t._1, t._2.sorted) })
 
@@ -97,8 +99,10 @@ case class OneDayValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)
     * @return value of the portfolio or an error.
     */
   private def simulateOneDayPrice(portfolio: Portfolio) =
-    Flow[MarketFactors].map(implicit factors => {
-      PortfolioPricer.price(portfolio)
+    Flow[Option[MarketFactors]].map(factorsO => {
+      for {
+        factors <- factorsO
+      } yield PortfolioPricer.price(portfolio)(factors)
     })
 }
 

@@ -7,7 +7,7 @@ import akka.stream.scaladsl.Source
   * Stream of market factors.
   */
 trait MarketFactorsGenerator {
-  def factors: Source[MarketFactors, NotUsed]
+  def factors: Source[Option[MarketFactors], NotUsed]
 }
 
 object MarketFactorsGenerator {

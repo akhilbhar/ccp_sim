@@ -36,7 +36,10 @@ case class Client(name: String, builder: MarketFactorsBuilder, parameters: Marke
   }
 
   private def value: Future[PortfolioPricingError \/ Double] = {
-    PortfolioPricer.price(portfolio)(builder.marketFactors(Calendar.getInstance)(parameters))
+    val date = Calendar.getInstance
+    date.add(Calendar.DAY_OF_MONTH, -1)
+
+    PortfolioPricer.price(portfolio)(builder.marketFactors(date)(parameters))
   }
 
   private def addPosition(position: Position): Unit = {

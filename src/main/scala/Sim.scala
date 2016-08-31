@@ -1,3 +1,4 @@
+import `var`.OneDayValueAtRiskCalculator.VaR
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.util.Timeout
@@ -49,7 +50,7 @@ object Sim extends App {
   val actorSystem = ActorSystem("Default")
 
   val builder = HistoricalMarketFactorsBuilder(YahooHistoricalDataFetcher)
-  val parameters = new MarketFactorsParameters
+  val parameters = MarketFactorsParameters(horizon = 300)
 
 //  val buyer = actorSystem.actorOf(Props(wire[Client]))
 //  val seller = actorSystem.actorOf(Props(wire[Client]))
@@ -62,20 +63,25 @@ object Sim extends App {
 
   BilateralClearingEngine.performTransaction(apple, 1, buyer, seller)
   BilateralClearingEngine.performTransaction(google, 1, buyer, seller)
-  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
-  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
-  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
+//  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
+
+  //  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
+//  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
+//  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
 
   implicit val timeout = Timeout(60 seconds)
 
-  ask(buyer, Client.Value).mapTo[PortfolioPricingError \/ Double] onComplete {
-    case Success(v) => println(s"Value: $v")
-    case Failure(e) => println(s"Error $e")
-  }
+//  ask(buyer, Client.Value).mapTo[PortfolioPricingError \/ Double] onComplete {
+//    case Success(v) => println(s"Value: $v")
+//    case Failure(e) => println(s"Error $e")
+//  }
 
   ask(buyer, Client.ValueAtRisk(0.05, 10000))
-    .mapTo[List[PortfolioPricingError] \/ Double] onComplete {
-    case Success(v) => println(s"VaR: $v")
-    case Failure(e) => println(s"Error: $e")
+    .mapTo[List[PortfolioPricingError] \/ VaR] onComplete {
+    case Success(v) => println("VaR: " + v)
+    case Failure(e) => {
+      println("Error: " + e)
+      e.getStackTrace.foreach(println(_))
+    }
   }
 }
