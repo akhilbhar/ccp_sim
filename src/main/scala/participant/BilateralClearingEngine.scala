@@ -1,7 +1,7 @@
 package participant
 
 import akka.actor.ActorRef
-import model.{Instrument, Position}
+import model.{Instrument, LongPosition, ShortPosition}
 import participant.Client.AddPosition
 
 /**
@@ -12,7 +12,7 @@ case object BilateralClearingEngine extends ClearingEngine {
                                   volume: Int,
                                   buyer: ActorRef,
                                   seller: ActorRef): Unit = {
-    buyer.tell(AddPosition(Position(instrument, volume, seller, true)), ActorRef.noSender)
-    seller.tell(AddPosition(Position(instrument, volume, buyer, false)), ActorRef.noSender)
+    buyer.tell(AddPosition(LongPosition(instrument, volume, seller)), ActorRef.noSender)
+    seller.tell(AddPosition(ShortPosition(instrument, volume, buyer)), ActorRef.noSender)
   }
 }

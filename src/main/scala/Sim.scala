@@ -50,7 +50,7 @@ object Sim extends App {
   val actorSystem = ActorSystem("Default")
 
   val builder = HistoricalMarketFactorsBuilder(YahooHistoricalDataFetcher)
-  val parameters = MarketFactorsParameters(horizon = 300)
+  val parameters = MarketFactorsParameters(horizon = 3000)
 
 //  val buyer = actorSystem.actorOf(Props(wire[Client]))
 //  val seller = actorSystem.actorOf(Props(wire[Client]))
@@ -63,13 +63,13 @@ object Sim extends App {
 
   BilateralClearingEngine.performTransaction(apple, 1, buyer, seller)
   BilateralClearingEngine.performTransaction(google, 1, buyer, seller)
-//  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
+  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
 
   //  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
 //  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
 //  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
 
-  implicit val timeout = Timeout(60 seconds)
+  implicit val timeout = Timeout(600 seconds)
 
 //  ask(buyer, Client.Value).mapTo[PortfolioPricingError \/ Double] onComplete {
 //    case Success(v) => println(s"Value: $v")

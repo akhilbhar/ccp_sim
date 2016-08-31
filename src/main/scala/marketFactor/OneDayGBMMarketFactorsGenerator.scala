@@ -17,9 +17,11 @@ import scalaz.std.ListInstances
 /**
   * Computes a one day simulation of the market factors using the Geometric Brownian Motion method.
   * @param date date until which data has to be taken in account.
+  * @param rate risk free rate.
   * @param currentFactors the current market factors.
   */
 case class OneDayGBMMarketFactorsGenerator(date: Calendar,
+                                           rate: Double,
                                            currentFactors: Map[Equity, Option[CurrentFactors]])
     extends MarketFactorsGenerator
     with ListInstances {
@@ -39,12 +41,9 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
     val randomVector =
       DenseVector[Double]((1 to currentFactors.keys.size).map(_ => generator.draw).toArray)
 
-    val randomCorrelatedVectorO = for {
-      choleskyFactorization <- choleskyFactorizationO
-    } yield choleskyFactorization * randomVector
-
     val correlatedRandomValuesO = for {
-      randomCorrelatedVector <- randomCorrelatedVectorO.map(_.toArray)
+      choleskyFactorization <- choleskyFactorizationO
+      randomCorrelatedVector = (choleskyFactorization * randomVector).toArray
     } yield currentFactors.keys zip randomCorrelatedVector
 
     val generatedPrices: Option[Map[Equity, Option[Double]]] =
@@ -110,7 +109,7 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
     * Computes the cholesky factorization of the price historical in the current factors.
     * @return cholesky factorization of the historical prices
     */
-  private def choleskyFactorizationO: Option[DenseMatrix[Double]] = {
+  private val choleskyFactorizationO: Option[DenseMatrix[Double]] = {
 
     /**
       * Convert List of Option to Option of List
@@ -144,5 +143,20 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
     override protected def volatility(equity: Equity): Future[Option[Double]] = {
       Future.successful(currentFactors.get(equity).flatten.map(_.volatility))
     }
+
+    override protected def daysToMaturity(maturity: Calendar): Future[Option[Double]] =
+      Future.successful({
+        val now = Calendar.getInstance()
+
+        val milliseconds1: Long = now.getTimeInMillis
+        val milliseconds2: Long = maturity.getTimeInMillis
+        val diff: Long = milliseconds2 - milliseconds1
+        val diffDays: Double = diff / (24 * 60 * 60 * 1000)
+        val adjustedDiffDays = diffDays - 1
+
+        if (adjustedDiffDays > 0) Some(adjustedDiffDays) else None
+      })
+
+    override protected def riskFreeRate: Future[Option[Double]] = Future.successful(Some(rate))
   }
 }

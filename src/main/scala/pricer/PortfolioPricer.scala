@@ -13,6 +13,7 @@ import scalaz.{-\/, EitherT, NonEmptyList, \/, \/-}
 /**
   * Prices portfolios.
   */
+//noinspection ScalaStyle
 object PortfolioPricer extends FutureInstances {
 
   /**
@@ -38,11 +39,17 @@ object PortfolioPricer extends FutureInstances {
 
     /* List of the prices of each position in the portfolio or errors */
     val mtmF: Future[List[PricingError \/ Double]] = Future.sequence(portfolio.positions map {
-      case Position(equity: Equity, volume, _, true) =>
+      case LongPosition(equity: Equity, volume, _) =>
         (for { price <- EitherT(markToMarket(equity)) } yield price * volume).run
 
-      case Position(equity: Equity, volume, _, false) =>
+      case LongPosition(option: EquityOption, volume, _) =>
+        (for { price <- EitherT(markToMarket(option)) } yield price * volume).run
+
+      case ShortPosition(equity: Equity, volume, _) =>
         (for { price <- EitherT(markToMarket(equity)) } yield -price * volume).run
+
+      case ShortPosition(option: EquityOption, volume, _) =>
+        (for { price <- EitherT(markToMarket(option)) } yield -price * volume).run
     })
 
     /* Price of the portfolio or aggregated errors */

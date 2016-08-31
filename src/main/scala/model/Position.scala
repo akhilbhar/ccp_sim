@@ -2,4 +2,10 @@ package model
 
 import akka.actor.ActorRef
 
-case class Position(instrument: Instrument, volume: Int, counterParty: ActorRef, long: Boolean)
+sealed trait Position {
+  def instrument: Instrument
+}
+
+case class LongPosition(instrument: Instrument, volume: Int, counterParty: ActorRef) extends Position
+case class ShortPosition(instrument: Instrument, volume: Int, counterParty: ActorRef) extends Position
+

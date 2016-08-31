@@ -6,13 +6,12 @@ import breeze.stats._
 import data.DataFetcher
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import marketFactor.MarketFactorsGenerator.CurrentFactors
-import model.{Equity, Portfolio}
+import model.{Equity, EquityOption, Portfolio}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scalaz.OptionT
 import scalaz.std.FutureInstances
-
 
 /**
   * Builds market factors based on the data from the data fetcher.
@@ -22,14 +21,14 @@ case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher)
     extends MarketFactorsBuilder
     with FutureInstances {
   override def oneDayForecastMarketFactors(portfolio: Portfolio, date: Calendar)(
-      implicit parameters: MarketFactorsParameters)
-    : Future[MarketFactorsGenerator] = {
+      implicit parameters: MarketFactorsParameters): Future[MarketFactorsGenerator] = {
 
     /* Equities in alphabetical order */
     val equities: List[Equity] = portfolio.positions
       .map(_.instrument)
       .map {
         case e: Equity => e
+        case o: EquityOption => o.underlying
       }
       .sortBy(_.ticker)
 
@@ -58,7 +57,7 @@ case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher)
 
     for {
       currentFactors <- futureCurrentFactors
-    } yield OneDayGBMMarketFactorsGenerator(date, currentFactors)
+    } yield OneDayGBMMarketFactorsGenerator(date, parameters.riskFreeRate, currentFactors)
   }
 
   override def marketFactors(date: Calendar)(
@@ -78,6 +77,21 @@ case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher)
             dataFetcher.historicalPrices(equity, from, to).map(_.map(_.map(_.adjusted))))
         } yield stddev(priceHistory)).run
       }
+
+      override protected def daysToMaturity(maturity: Calendar): Future[Option[Double]] =
+        Future.successful({
+          val now = Calendar.getInstance()
+
+          val milliseconds1: Long = now.getTimeInMillis
+          val milliseconds2: Long = maturity.getTimeInMillis
+          val diff: Long = milliseconds2 - milliseconds1
+          val diffDays: Double = diff / (24 * 60 * 60 * 1000)
+
+          if (diffDays > 0) Some(diffDays) else None
+        })
+
+      override protected def riskFreeRate: Future[Option[Double]] =
+        Future.successful(Some(parameters.riskFreeRate))
     }
   }
 }
