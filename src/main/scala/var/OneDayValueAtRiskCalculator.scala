@@ -7,11 +7,11 @@ import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Balance, Flow, GraphDSL, Keep, Merge, Sink}
 import akka.stream.{ActorMaterializer, FlowShape}
-import breeze.numerics.round
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import marketFactor.{MarketFactors, MarketFactorsBuilder}
 import model.Portfolio
 import pricer.{PortfolioPricer, PortfolioPricingError}
+import spire.math.Real
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -22,13 +22,13 @@ import scalaz.{-\/, \/, \/-}
   * Distributed computation of the value at risk using a Monte Carlo simulation.
   *
   * @param thresholdLoss probability of loss
-  * @param simulations number of simulations to perform
+  * @param simulations Real of simulations to perform
   * @param builder builder for estimating
   * @param parameters parameters for adapting the market factors
   * @param system actor system on which the computation has to be run
   * @param clusterSize size of the actor cluster for computation
   */
-case class OneDayValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)(
+case class OneDayValueAtRiskCalculator(thresholdLoss: Real, simulations: Long)(
     implicit builder: MarketFactorsBuilder,
     parameters: MarketFactorsParameters,
     system: ActorSystem,
@@ -60,16 +60,16 @@ case class OneDayValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)
 
     groupedResultsF.map({
       case t if t._1.isEmpty =>
-        \/-(VaR(t._2(round(thresholdLoss * simulations).asInstanceOf[Int] - 1), t._2))
+        \/-(VaR(t._2((thresholdLoss * simulations).round().toInt - 1), t._2))
       case t => -\/(t._1)
     })
   }
 
   /**
-    * Flow to balance the work between different a fixed number of workers.
+    * Flow to balance the work between different a fixed Real of workers.
     *
     * @param worker worker that computes one simulation.
-    * @param workerCount number of workers.
+    * @param workerCount Real of workers.
     * @tparam In input of the flow
     * @tparam Out output of the flow
     * @return Flow outputting all the computed scenarios
@@ -107,5 +107,5 @@ case class OneDayValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)
 }
 
 object OneDayValueAtRiskCalculator {
-  case class VaR(valueAtRisk: Double, outcomes: List[Double])
+  case class VaR(valueAtRisk: Real, outcomes: List[Real])
 }

@@ -2,6 +2,7 @@ package marketFactor
 
 import akka.NotUsed
 import akka.stream.scaladsl.Source
+import spire.math.Real
 
 /**
   * Stream of market factors.
@@ -11,5 +12,5 @@ trait MarketFactorsGenerator {
 }
 
 object MarketFactorsGenerator {
-  case class CurrentFactors(price: Double, volatility: Double, priceHistory: Vector[Double])
+  case class CurrentFactors(price: Real, volatility: Real, priceHistory: Vector[Real])
 }

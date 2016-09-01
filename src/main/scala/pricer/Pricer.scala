@@ -2,12 +2,13 @@ package pricer
 
 import java.util.Calendar
 
-import breeze.numerics.{exp, log, sqrt}
 import breeze.stats.distributions._
 import marketFactor.MarketFactor.{DaysToMaturity, Price, RiskFreeRate, Volatility}
 import marketFactor.{MarketFactor, MarketFactors}
 import model._
 import pricer.PricingError.MissingMarketFactors
+import spire.implicits._
+import spire.math.{Real, _}
 
 import scala.annotation.implicitNotFound
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -27,7 +28,7 @@ trait Pricer[I <: Instrument] {
     * @param factors the factors
     * @return
     */
-  def price(instrument: I)(implicit factors: MarketFactors): Future[PricingError \/ Double]
+  def price(instrument: I)(implicit factors: MarketFactors): Future[PricingError \/ Real]
 }
 
 object Pricer extends PricerImplicits
@@ -42,7 +43,7 @@ trait PricerImplicits {
     */
   implicit object EquityPricer extends Pricer[Equity] {
     override def price(equity: Equity)(
-        implicit factors: MarketFactors): Future[PricingError \/ Double] = {
+        implicit factors: MarketFactors): Future[PricingError \/ Real] = {
       val priceFactor = Price(equity)
 
       /* Gets the price factor from the market factors */
@@ -52,25 +53,25 @@ trait PricerImplicits {
   }
 
   implicit object OptionPricer extends Pricer[EquityOption] {
-    private[pricer] case class Parameters(daysToMaturity: Double,
-                                          spot: Double,
-                                          strike: Double,
-                                          riskFreeRate: Double,
-                                          volatility: Double) {
-      def annualizedVolatility: Double = volatility * sqrt(260)
-      def timeToMaturity: Double = daysToMaturity / 365.0
+    private[pricer] case class Parameters(daysToMaturity: Real,
+                                          spot: Real,
+                                          strike: Real,
+                                          riskFreeRate: Real,
+                                          volatility: Real) {
+      def annualizedVolatility = volatility * sqrt(Real(260))
+      def timeToMaturity = daysToMaturity / Real(365)
     }
 
     override def price(option: EquityOption)(
-        implicit factors: MarketFactors): Future[PricingError \/ Double] = {
+        implicit factors: MarketFactors): Future[PricingError \/ Real] = {
 
-      def factor(factor: MarketFactor): Future[MissingMarketFactors \/ Double] = {
+      def factor(factor: MarketFactor): Future[MissingMarketFactors \/ Real] = {
         factors(factor).map(
           _.map(f => \/-(f)).getOrElse(-\/(MissingMarketFactors(NonEmptyList(factor)))))
       }
 
       def parameters(underlying: Equity,
-                     strike: Double,
+                     strike: Real,
                      maturity: Calendar): Future[PricingError \/ Parameters] = {
         val daysToMaturityF = factor(DaysToMaturity(maturity)).map(_.validation.toValidationNel)
         val spotF = factor(Price(underlying)).map(_.validation.toValidationNel)
@@ -103,38 +104,37 @@ trait PricerImplicits {
       }
     }
 
-    private[this] def d1(parameters: Parameters): Double = {
+    private[this] def d1(parameters: Parameters): Real = {
       import parameters._
 
-      println("log: " + log(spot / strike))
-      println("normvol: " + volatility)
-      println("vol " + annualizedVolatility)
-      println("ann2: " + (annualizedVolatility * annualizedVolatility) / 2.0)
-      println(
-        "risktime " + (riskFreeRate + (annualizedVolatility * annualizedVolatility) / 2.0) * timeToMaturity)
-
-      val a = log(spot / strike) + (riskFreeRate + (annualizedVolatility * annualizedVolatility) / 2.0) * timeToMaturity
+      val a = log(spot / strike) + (riskFreeRate + annualizedVolatility ** 2 / 2) * timeToMaturity
       val b = annualizedVolatility * sqrt(timeToMaturity)
+
+      println("a1 " + a)
+      println("b1 " + b)
 
       a / b
     }
 
-    private[this] def d2(parameters: Parameters): Double = {
+    private[this] def d2(parameters: Parameters): Real = {
       import parameters._
 
-      val a = log(spot / strike) + (riskFreeRate - (annualizedVolatility * annualizedVolatility) / 2.0) * timeToMaturity
+      val a = log(spot / strike) + (riskFreeRate - annualizedVolatility ** 2 / 2) * timeToMaturity
       val b = annualizedVolatility * sqrt(timeToMaturity)
 
 //      d1(parameters) - annualizedVolatility * sqrt(timeToMaturity)
 
+      println("a2 " + a)
+      println("b2 " + b)
+
       a / b
     }
 
-    private[this] def n(v: Double): Double = {
-      Gaussian(0, 1).cdf(v)
+    private[this] def n(v: Real): Real = {
+      Gaussian(0, 1).cdf(v.toDouble)
     }
 
-    private[this] def put(parameters: Parameters): Double = {
+    private[this] def put(parameters: Parameters): Real = {
       import parameters._
 
       val d1_ = d1(parameters)
@@ -146,7 +146,7 @@ trait PricerImplicits {
       a - b
     }
 
-    private[this] def call(parameters: Parameters): Double = {
+    private[this] def call(parameters: Parameters): Real = {
       import parameters._
 
       val d1_ = d1(parameters)

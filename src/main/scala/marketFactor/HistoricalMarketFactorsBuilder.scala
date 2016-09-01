@@ -2,12 +2,13 @@ package marketFactor
 
 import java.util.Calendar
 
-import breeze.stats._
 import data.DataFetcher
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import marketFactor.MarketFactorsGenerator.CurrentFactors
 import model.{Equity, EquityOption, Portfolio}
-import util.Math.volatilityOfChange
+import spire.math.Real
+import util.Math.{volatilityOfChange, _}
+import util.Time.daysDiff
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -64,11 +65,11 @@ case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher)
   override def marketFactors(date: Calendar)(
       implicit parameters: MarketFactorsParameters): MarketFactors = {
     new MarketFactors {
-      override protected def price(equity: Equity): Future[Option[Double]] = {
+      override protected def price(equity: Equity): Future[Option[Real]] = {
         OptionT(dataFetcher.historicalPrice(equity, date)).map(_.adjusted).run
       }
 
-      override protected def volatility(equity: Equity): Future[Option[Double]] = {
+      override protected def volatility(equity: Equity): Future[Option[Real]] = {
         val from = date.clone().asInstanceOf[Calendar]
         from.add(Calendar.DATE, -parameters.horizon)
         val to = date.clone().asInstanceOf[Calendar]
@@ -79,21 +80,18 @@ case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher)
         } yield volatilityOfChange(priceHistory)).run
       }
 
-      override protected def daysToMaturity(maturity: Calendar): Future[Option[Double]] =
+      override protected def daysToMaturity(maturity: Calendar): Future[Option[Real]] =
         Future.successful({
           val now = Calendar.getInstance()
 
-          val milliseconds1: Long = now.getTimeInMillis
-          val milliseconds2: Long = maturity.getTimeInMillis
-          val diff: Long = milliseconds2 - milliseconds1
-          val diffDays: Double = diff / (24.0 * 60.0 * 60.0 * 1000.0)
+          val days = daysDiff(now, maturity)
 
-          printf(s"Diff: $diffDays")
+          printf(s"Diff: $days")
 
-          if (diffDays > 0) Some(diffDays) else None
+          if (days > 0) Some(days) else None
         })
 
-      override protected def riskFreeRate: Future[Option[Double]] =
+      override protected def riskFreeRate: Future[Option[Real]] =
         Future.successful(Some(parameters.riskFreeRate))
     }
   }

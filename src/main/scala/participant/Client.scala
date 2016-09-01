@@ -12,6 +12,7 @@ import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import model.{Portfolio, Position}
 import participant.Client._
 import pricer.{PortfolioPricer, PortfolioPricingError}
+import spire.math.Real
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -35,7 +36,7 @@ case class Client(name: String, builder: MarketFactorsBuilder, parameters: Marke
     case AddPosition(p) => addPosition(p)
   }
 
-  private def value: Future[PortfolioPricingError \/ Double] = {
+  private def value: Future[PortfolioPricingError \/ Real] = {
     val date = Calendar.getInstance
 
     PortfolioPricer.price(portfolio)(builder.marketFactors(date)(parameters))

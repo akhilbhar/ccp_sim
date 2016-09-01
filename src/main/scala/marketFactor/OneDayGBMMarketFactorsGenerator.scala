@@ -4,12 +4,14 @@ import java.util.Calendar
 import akka.NotUsed
 import akka.stream.scaladsl.Source
 import breeze.linalg.{DenseMatrix, DenseVector, cholesky}
-import breeze.numerics.exp
-import breeze.stats._
+import breeze.stats.covmat
 import breeze.stats.distributions.Gaussian
 import marketFactor.MarketFactorsGenerator.CurrentFactors
 import model.Equity
+import spire.implicits._
+import spire.math._
 import util.Math._
+import util.Time.daysDiff
 
 import scala.concurrent.Future
 import scalaz.OptionT
@@ -22,7 +24,7 @@ import scalaz.std.ListInstances
   * @param currentFactors the current market factors.
   */
 case class OneDayGBMMarketFactorsGenerator(date: Calendar,
-                                           rate: Double,
+                                           rate: Real,
                                            currentFactors: Map[Equity, Option[CurrentFactors]])
     extends MarketFactorsGenerator
     with ListInstances {
@@ -40,14 +42,14 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
     */
   private def toMarketFactors(generator: Gaussian): Option[MarketFactors] = {
     val randomVector =
-      DenseVector[Double]((1 to currentFactors.keys.size).map(_ => generator.draw).toArray)
+      new DenseVector[Real]((1 to currentFactors.keys.size).map(_ => Real(generator.draw)).toArray)
 
     val correlatedRandomValuesO = for {
       choleskyFactorization <- choleskyFactorizationO
       randomCorrelatedVector = (choleskyFactorization * randomVector).toArray
     } yield currentFactors.keys zip randomCorrelatedVector
 
-    val generatedPrices: Option[Map[Equity, Option[Double]]] =
+    val generatedPrices: Option[Map[Equity, Option[Real]]] =
       for (correlatedRandomValues <- correlatedRandomValuesO) yield {
         correlatedRandomValues.map({
           case (equity, randomValue) =>
@@ -56,7 +58,7 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
               historicalPrices <- currentFactors(equity).map(_.priceHistory)
               historicalVolatily <- currentFactors(equity).map(_.volatility)
               historicalReturnMean = meanOfChange(historicalPrices)
-            } yield generatePrice(currentPrice, historicalReturnMean, historicalVolatily, randomValue))
+            } yield generatePrice(currentPrice, historicalReturnMean, historicalVolatily, randomValue.toDouble))
         })(scala.collection.breakOut)
       }
 
@@ -71,18 +73,18 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
     * @param randomValue random value
     * @return
     */
-  private def generatePrice(currentPrice: Double,
-                            historicalMean: Double,
-                            volatility: Double,
-                            randomValue: Double): Double = {
-    currentPrice * exp((historicalMean - (volatility * volatility) / 2) + volatility * randomValue)
+  private def generatePrice(currentPrice: Real,
+                            historicalMean: Real,
+                            volatility: Real,
+                            randomValue: Double): Real = {
+    currentPrice * exp((historicalMean - (volatility * volatility) / Real(2)) + volatility * Real(randomValue))
   }
 
   /**
     * Computes the cholesky factorization of the price historical in the current factors.
     * @return cholesky factorization of the historical prices
     */
-  private val choleskyFactorizationO: Option[DenseMatrix[Double]] = {
+  private val choleskyFactorizationO: Option[DenseMatrix[Real]] = {
 
     /**
       * Convert List of Option to Option of List
@@ -102,34 +104,31 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
       cols <- priceHistoryOption.map(_.length)
       rows = priceHistory.length / cols
 
-      priceMat = new DenseMatrix[Double](rows, cols, priceHistory.toArray)
-      covMat = covmat(priceMat)
-    } yield cholesky(covMat)
+      priceMat = new DenseMatrix[Real](rows, cols, priceHistory.toArray)
+      cov = covmat(priceMat)
+    } yield cholesky(cov)
   }
 
-  case class GeneratedMarketFactors(generatedPrices: Map[Equity, Option[Double]])
+  case class GeneratedMarketFactors(generatedPrices: Map[Equity, Option[Real]])
       extends MarketFactors {
-    override protected def price(equity: Equity): Future[Option[Double]] = {
+    override protected def price(equity: Equity): Future[Option[Real]] = {
       Future.successful(generatedPrices.get(equity).flatten)
     }
 
-    override protected def volatility(equity: Equity): Future[Option[Double]] = {
+    override protected def volatility(equity: Equity): Future[Option[Real]] = {
       Future.successful(currentFactors.get(equity).flatten.map(_.volatility))
     }
 
-    override protected def daysToMaturity(maturity: Calendar): Future[Option[Double]] =
+    override protected def daysToMaturity(maturity: Calendar): Future[Option[Real]] =
       Future.successful({
         val now = Calendar.getInstance()
 
-        val milliseconds1: Long = now.getTimeInMillis
-        val milliseconds2: Long = maturity.getTimeInMillis
-        val diff: Long = milliseconds2 - milliseconds1
-        val diffDays: Double = diff / (24.0 * 60.0 * 60.0 * 1000.0)
-        val adjustedDiffDays = diffDays - 1
+        val days = daysDiff(now, maturity)
+        val adjustedDays = days - 1
 
-        if (adjustedDiffDays > 0) Some(adjustedDiffDays) else None
+        if (adjustedDays > 0) Some(adjustedDays) else None
       })
 
-    override protected def riskFreeRate: Future[Option[Double]] = Future.successful(Some(rate))
+    override protected def riskFreeRate: Future[Option[Real]] = Future.successful(Some(rate))
   }
 }

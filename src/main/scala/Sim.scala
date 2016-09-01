@@ -1,5 +1,6 @@
 import java.util.{GregorianCalendar, TimeZone}
 
+import `var`.OneDayValueAtRiskCalculator.VaR
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.util.Timeout
@@ -9,6 +10,7 @@ import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import model.{CallOption, Equity}
 import participant.{BilateralClearingEngine, Client}
 import pricer.PortfolioPricingError
+import spire.implicits._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -70,10 +72,10 @@ object Sim extends App {
   val tesla = Equity("TSLA")
   val teslaCall = CallOption(tesla, 220, new GregorianCalendar(2016, 8, 7))
 
-//  BilateralClearingEngine.performTransaction(apple, 1, buyer, seller)
-//  BilateralClearingEngine.performTransaction(google, 1, buyer, seller)
+  BilateralClearingEngine.performTransaction(apple, 1, buyer, seller)
+  BilateralClearingEngine.performTransaction(google, 1, buyer, seller)
 //  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
-  BilateralClearingEngine.performTransaction(appleCall, 1, buyer, seller)
+//  BilateralClearingEngine.performTransaction(appleCall, 1, buyer, seller)
 
 
   //  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
@@ -82,17 +84,17 @@ object Sim extends App {
 
   implicit val timeout = Timeout(600 seconds)
 
-  ask(buyer, Client.Value).mapTo[PortfolioPricingError \/ Double] onComplete {
-    case Success(v) => println(s"Value: $v")
-    case Failure(e) => println(s"Error $e")
-  }
-
-//  ask(buyer, Client.ValueAtRisk(0.05, 10000))
-//    .mapTo[List[PortfolioPricingError] \/ VaR] onComplete {
-//    case Success(v) => println("VaR: " + v)
-//    case Failure(e) => {
-//      println("Error: " + e)
-//      e.getStackTrace.foreach(println(_))
-//    }
+//  ask(buyer, Client.Value).mapTo[PortfolioPricingError \/ Real] onComplete {
+//    case Success(v) => println(s"Value: $v")
+//    case Failure(e) => println(s"Error $e")
 //  }
+
+  ask(buyer, Client.ValueAtRisk(0.05, 10000))
+    .mapTo[List[PortfolioPricingError] \/ VaR] onComplete {
+    case Success(v) => println("VaR: " + v)
+    case Failure(e) => {
+      println("Error: " + e)
+      e.getStackTrace.foreach(println(_))
+    }
+  }
 }
