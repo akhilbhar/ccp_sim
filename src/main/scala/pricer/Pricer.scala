@@ -52,13 +52,13 @@ trait PricerImplicits {
   }
 
   implicit object OptionPricer extends Pricer[EquityOption] {
-    private[pricer] case class Parameters(daysToMaturity: Int,
+    private[pricer] case class Parameters(daysToMaturity: Double,
                                           spot: Double,
                                           strike: Double,
                                           riskFreeRate: Double,
                                           volatility: Double) {
       def annualizedVolatility: Double = volatility * sqrt(260)
-      def timeToMaturity: Double = daysToMaturity / 365
+      def timeToMaturity: Double = daysToMaturity / 365.0
     }
 
     override def price(option: EquityOption)(
@@ -85,7 +85,7 @@ trait PricerImplicits {
             volatility <- volatilityF
           } yield {
             (daysToMaturity |@| spot |@| riskFreeRate |@| volatility) {
-              case (days, spt, rate, vol) => Parameters(days.toInt, spt, strike, rate, vol)
+              case (days, spt, rate, vol) => Parameters(days, spt, strike, rate, vol)
             }
           }
         }
@@ -106,7 +106,14 @@ trait PricerImplicits {
     private[this] def d1(parameters: Parameters): Double = {
       import parameters._
 
-      val a = log(spot / strike) + (riskFreeRate + (annualizedVolatility * annualizedVolatility) / 2) * timeToMaturity
+      println("log: " + log(spot / strike))
+      println("normvol: " + volatility)
+      println("vol " + annualizedVolatility)
+      println("ann2: " + (annualizedVolatility * annualizedVolatility) / 2.0)
+      println(
+        "risktime " + (riskFreeRate + (annualizedVolatility * annualizedVolatility) / 2.0) * timeToMaturity)
+
+      val a = log(spot / strike) + (riskFreeRate + (annualizedVolatility * annualizedVolatility) / 2.0) * timeToMaturity
       val b = annualizedVolatility * sqrt(timeToMaturity)
 
       a / b
@@ -115,10 +122,17 @@ trait PricerImplicits {
     private[this] def d2(parameters: Parameters): Double = {
       import parameters._
 
-      d1(parameters) - annualizedVolatility * sqrt(timeToMaturity)
+      val a = log(spot / strike) + (riskFreeRate - (annualizedVolatility * annualizedVolatility) / 2.0) * timeToMaturity
+      val b = annualizedVolatility * sqrt(timeToMaturity)
+
+//      d1(parameters) - annualizedVolatility * sqrt(timeToMaturity)
+
+      a / b
     }
 
-    private[this] def n(v: Double): Double = Gaussian(0, 1).cdf(v)
+    private[this] def n(v: Double): Double = {
+      Gaussian(0, 1).cdf(v)
+    }
 
     private[this] def put(parameters: Parameters): Double = {
       import parameters._

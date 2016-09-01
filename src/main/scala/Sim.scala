@@ -1,11 +1,12 @@
-import `var`.OneDayValueAtRiskCalculator.VaR
+import java.util.{GregorianCalendar, TimeZone}
+
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.util.Timeout
 import data.YahooHistoricalDataFetcher
 import marketFactor.HistoricalMarketFactorsBuilder
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
-import model.Equity
+import model.{CallOption, Equity}
 import participant.{BilateralClearingEngine, Client}
 import pricer.PortfolioPricingError
 
@@ -47,10 +48,12 @@ object Sim extends App {
   //
   //  println(price)
 
+  TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"))
+
   val actorSystem = ActorSystem("Default")
 
   val builder = HistoricalMarketFactorsBuilder(YahooHistoricalDataFetcher)
-  val parameters = MarketFactorsParameters(horizon = 3000)
+  val parameters = MarketFactorsParameters(horizon = 5)
 
 //  val buyer = actorSystem.actorOf(Props(wire[Client]))
 //  val seller = actorSystem.actorOf(Props(wire[Client]))
@@ -58,12 +61,20 @@ object Sim extends App {
   val seller = actorSystem.actorOf(Client.props("Saskia", builder, parameters))
 
   val apple = Equity("AAPL")
+  val appleMaturity = new GregorianCalendar(2016, 8, 30)
+  val appleCall = CallOption(apple, 95, appleMaturity)
+
   val google = Equity("GOOG")
   val microsoft = Equity("MSFT")
+//  val microsoftPut = PutOption(microsoft, )
+  val tesla = Equity("TSLA")
+  val teslaCall = CallOption(tesla, 220, new GregorianCalendar(2016, 8, 7))
 
-  BilateralClearingEngine.performTransaction(apple, 1, buyer, seller)
-  BilateralClearingEngine.performTransaction(google, 1, buyer, seller)
-  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
+//  BilateralClearingEngine.performTransaction(apple, 1, buyer, seller)
+//  BilateralClearingEngine.performTransaction(google, 1, buyer, seller)
+//  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
+  BilateralClearingEngine.performTransaction(appleCall, 1, buyer, seller)
+
 
   //  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
 //  BilateralClearingEngine.performTransaction(microsoft, 1, seller, buyer)
@@ -71,17 +82,17 @@ object Sim extends App {
 
   implicit val timeout = Timeout(600 seconds)
 
-//  ask(buyer, Client.Value).mapTo[PortfolioPricingError \/ Double] onComplete {
-//    case Success(v) => println(s"Value: $v")
-//    case Failure(e) => println(s"Error $e")
-//  }
-
-  ask(buyer, Client.ValueAtRisk(0.05, 10000))
-    .mapTo[List[PortfolioPricingError] \/ VaR] onComplete {
-    case Success(v) => println("VaR: " + v)
-    case Failure(e) => {
-      println("Error: " + e)
-      e.getStackTrace.foreach(println(_))
-    }
+  ask(buyer, Client.Value).mapTo[PortfolioPricingError \/ Double] onComplete {
+    case Success(v) => println(s"Value: $v")
+    case Failure(e) => println(s"Error $e")
   }
+
+//  ask(buyer, Client.ValueAtRisk(0.05, 10000))
+//    .mapTo[List[PortfolioPricingError] \/ VaR] onComplete {
+//    case Success(v) => println("VaR: " + v)
+//    case Failure(e) => {
+//      println("Error: " + e)
+//      e.getStackTrace.foreach(println(_))
+//    }
+//  }
 }

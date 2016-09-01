@@ -9,6 +9,7 @@ import breeze.stats._
 import breeze.stats.distributions.Gaussian
 import marketFactor.MarketFactorsGenerator.CurrentFactors
 import model.Equity
+import util.Math._
 
 import scala.concurrent.Future
 import scalaz.OptionT
@@ -53,9 +54,9 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
             (equity, for {
               currentPrice <- currentFactors(equity).map(_.price)
               historicalPrices <- currentFactors(equity).map(_.priceHistory)
+              historicalVolatily <- currentFactors(equity).map(_.volatility)
               historicalReturnMean = meanOfChange(historicalPrices)
-              historicalReturnVolatility = volatilityOfChange(historicalPrices)
-            } yield generatePrice(currentPrice, historicalReturnMean, historicalReturnVolatility, randomValue))
+            } yield generatePrice(currentPrice, historicalReturnMean, historicalVolatily, randomValue))
         })(scala.collection.breakOut)
       }
 
@@ -76,34 +77,6 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
                             randomValue: Double): Double = {
     currentPrice * exp((historicalMean - (volatility * volatility) / 2) + volatility * randomValue)
   }
-
-  /**
-    * Creates a Vector with the returns.
-    * @param data data on which to compute the returns.
-    * @return returns
-    */
-  private def change(data: Vector[Double]): Vector[Double] = {
-    data
-      .sliding(2)
-      .map {
-        case Seq(a, b, _ *) => (a - b) / b
-      }
-      .toVector
-  }
-
-  /**
-    * Computes the mean of the returns of Vector data
-    * @param data the data
-    * @return the mean of the changes in data
-    */
-  private def meanOfChange(data: Vector[Double]): Double = mean(change(data))
-
-  /**
-    * Computes the standard deviation of the change in data.
-    * @param data the data
-    * @return the standard deviation of the changes in data.
-    */
-  private def volatilityOfChange(data: Vector[Double]): Double = stddev(change(data))
 
   /**
     * Computes the cholesky factorization of the price historical in the current factors.
@@ -151,7 +124,7 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
         val milliseconds1: Long = now.getTimeInMillis
         val milliseconds2: Long = maturity.getTimeInMillis
         val diff: Long = milliseconds2 - milliseconds1
-        val diffDays: Double = diff / (24 * 60 * 60 * 1000)
+        val diffDays: Double = diff / (24.0 * 60.0 * 60.0 * 1000.0)
         val adjustedDiffDays = diffDays - 1
 
         if (adjustedDiffDays > 0) Some(adjustedDiffDays) else None

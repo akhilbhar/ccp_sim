@@ -29,6 +29,9 @@ case object YahooHistoricalDataFetcher extends DataFetcher with FutureInstances 
                                 to: Calendar): Future[Option[Vector[Price]]] = {
     Future {
       Option(YahooFinance.get(equity.ticker, from, to, Interval.DAILY))
+        .map(stockToHistoricalPricesVector).map(_.map(println(_)))
+
+      Option(YahooFinance.get(equity.ticker, from, to, Interval.DAILY))
         .map(stockToHistoricalPricesVector)
     }
   }

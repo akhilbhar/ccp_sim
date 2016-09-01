@@ -7,6 +7,7 @@ import data.DataFetcher
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import marketFactor.MarketFactorsGenerator.CurrentFactors
 import model.{Equity, EquityOption, Portfolio}
+import util.Math.volatilityOfChange
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -75,7 +76,7 @@ case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher)
         (for {
           priceHistory <- OptionT(
             dataFetcher.historicalPrices(equity, from, to).map(_.map(_.map(_.adjusted))))
-        } yield stddev(priceHistory)).run
+        } yield volatilityOfChange(priceHistory)).run
       }
 
       override protected def daysToMaturity(maturity: Calendar): Future[Option[Double]] =
@@ -85,7 +86,9 @@ case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher)
           val milliseconds1: Long = now.getTimeInMillis
           val milliseconds2: Long = maturity.getTimeInMillis
           val diff: Long = milliseconds2 - milliseconds1
-          val diffDays: Double = diff / (24 * 60 * 60 * 1000)
+          val diffDays: Double = diff / (24.0 * 60.0 * 60.0 * 1000.0)
+
+          printf(s"Diff: $diffDays")
 
           if (diffDays > 0) Some(diffDays) else None
         })

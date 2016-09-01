@@ -38,5 +38,3 @@ libraryDependencies ++= Seq(
   "com.softwaremill.macwire" %% "util" % "2.2.3",
   "com.typesafe.akka" %% "akka-stream" % "2.4.9"
 )
-
-enablePlugins(JmhPlugin)
