@@ -3,7 +3,6 @@ package data
 import java.util.Calendar
 
 import model.{Equity, Price}
-import spire.math.{Real, SafeLong}
 import yahoofinance.histquotes.Interval
 import yahoofinance.{Stock, YahooFinance}
 
@@ -30,9 +29,6 @@ case object YahooHistoricalDataFetcher extends DataFetcher with FutureInstances 
                                 to: Calendar): Future[Option[Vector[Price]]] = {
     Future {
       Option(YahooFinance.get(equity.ticker, from, to, Interval.DAILY))
-        .map(stockToHistoricalPricesVector).map(_.map(println(_)))
-
-      Option(YahooFinance.get(equity.ticker, from, to, Interval.DAILY))
         .map(stockToHistoricalPricesVector)
     }
   }
@@ -43,12 +39,12 @@ case object YahooHistoricalDataFetcher extends DataFetcher with FutureInstances 
       .map(
         quote =>
           Price(quote.getDate,
-                Real(quote.getOpen),
-                Real(quote.getHigh),
-                Real(quote.getLow),
-                Real(quote.getClose),
-                SafeLong(quote.getVolume),
-                Real(quote.getAdjClose))
+                quote.getOpen.doubleValue(),
+                quote.getHigh.doubleValue(),
+                quote.getLow.doubleValue(),
+                quote.getClose.doubleValue(),
+                quote.getVolume,
+                quote.getAdjClose.doubleValue())
       )
       .toVector
   }

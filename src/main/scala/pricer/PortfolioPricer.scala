@@ -3,7 +3,6 @@ package pricer
 import marketFactor.MarketFactors
 import model._
 import pricer.PortfolioPricingError.UnderlyingPricingErrors
-import spire.math.Real
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -24,7 +23,7 @@ object PortfolioPricer extends FutureInstances {
     * @return the price of the portfolio or an error if it cannot price an underlying.
     */
   def price(portfolio: Portfolio)(
-      implicit factors: MarketFactors): Future[PortfolioPricingError \/ Real] = {
+      implicit factors: MarketFactors): Future[PortfolioPricingError \/ Double] = {
 
     /**
       * Marks to market the instrument
@@ -34,12 +33,12 @@ object PortfolioPricer extends FutureInstances {
       * @return the price of instrument or an error if it cannot be priced
       */
     def markToMarket[I <: Instrument](instrument: I)(
-        implicit pricer: Pricer[I]): Future[PricingError \/ Real] = {
+        implicit pricer: Pricer[I]): Future[PricingError \/ Double] = {
       pricer.price(instrument)
     }
 
     /* List of the prices of each position in the portfolio or errors */
-    val mtmF: Future[List[PricingError \/ Real]] = Future.sequence(portfolio.positions map {
+    val mtmF: Future[List[PricingError \/ Double]] = Future.sequence(portfolio.positions map {
       case LongPosition(equity: Equity, volume, _) =>
         (for { price <- EitherT(markToMarket(equity)) } yield price * volume).run
 
@@ -54,7 +53,7 @@ object PortfolioPricer extends FutureInstances {
     })
 
     /* Price of the portfolio or aggregated errors */
-    val totalF: Future[NonEmptyList[PricingError] \/ Real] = {
+    val totalF: Future[NonEmptyList[PricingError] \/ Double] = {
       for {
         mtm <- mtmF
       } yield

@@ -4,8 +4,6 @@ import java.util.Calendar
 
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import model.Portfolio
-import spire.implicits._
-import spire.math.Real
 
 import scala.concurrent.Future
 
@@ -41,6 +39,6 @@ object MarketFactorsBuilder {
     * @param riskFreeRate
     * @param horizon Real of days of data to use.
     */
-  case class MarketFactorsParameters(riskFreeRate: Real = 0, horizon: Int = 1000)
+  case class MarketFactorsParameters(riskFreeRate: Double = 0, horizon: Long = 1000)
 
 }

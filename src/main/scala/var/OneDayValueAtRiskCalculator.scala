@@ -7,11 +7,11 @@ import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Balance, Flow, GraphDSL, Keep, Merge, Sink}
 import akka.stream.{ActorMaterializer, FlowShape}
+import breeze.numerics.round
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import marketFactor.{MarketFactors, MarketFactorsBuilder}
 import model.Portfolio
 import pricer.{PortfolioPricer, PortfolioPricingError}
-import spire.math.Real
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -28,7 +28,7 @@ import scalaz.{-\/, \/, \/-}
   * @param system actor system on which the computation has to be run
   * @param clusterSize size of the actor cluster for computation
   */
-case class OneDayValueAtRiskCalculator(thresholdLoss: Real, simulations: Long)(
+case class OneDayValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)(
     implicit builder: MarketFactorsBuilder,
     parameters: MarketFactorsParameters,
     system: ActorSystem,
@@ -60,7 +60,7 @@ case class OneDayValueAtRiskCalculator(thresholdLoss: Real, simulations: Long)(
 
     groupedResultsF.map({
       case t if t._1.isEmpty =>
-        \/-(VaR(t._2((thresholdLoss * simulations).round().toInt - 1), t._2))
+        \/-(VaR(t._2(round(thresholdLoss * simulations).toInt - 1), t._2))
       case t => -\/(t._1)
     })
   }
@@ -107,5 +107,5 @@ case class OneDayValueAtRiskCalculator(thresholdLoss: Real, simulations: Long)(
 }
 
 object OneDayValueAtRiskCalculator {
-  case class VaR(valueAtRisk: Real, outcomes: List[Real])
+  case class VaR(valueAtRisk: Double, outcomes: List[Double])
 }
