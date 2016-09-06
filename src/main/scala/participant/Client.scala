@@ -1,28 +1,29 @@
 package participant
 
-import java.util.Calendar
+import java.util.{Calendar, GregorianCalendar}
 
-import `var`.OneDayValueAtRiskCalculator
-import `var`.OneDayValueAtRiskCalculator.VaR
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.pattern.pipe
 import com.softwaremill.macwire._
+import custodian.Position
 import marketFactor.MarketFactorsBuilder
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
-import model.{Portfolio, Position}
+import model.Portfolio
 import participant.Client._
-import pricer.{PortfolioPricer, PortfolioPricingError}
+import valueAtRisk.OneDayValueAtRiskCalculator
+import valueAtRisk.OneDayValueAtRiskCalculator.VaR
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scalaz.\/
 import scalaz.std.{FutureInstances, OptionInstances}
 
 /**
   * Client.
   * @param name name of the client.
   */
-case class Client(name: String, builder: MarketFactorsBuilder, parameters: MarketFactorsParameters)
+case class Client(name: String,
+                  builder: MarketFactorsBuilder,
+                  parameters: MarketFactorsParameters)
     extends Actor
     with FutureInstances
     with OptionInstances {
@@ -35,25 +36,26 @@ case class Client(name: String, builder: MarketFactorsBuilder, parameters: Marke
     case AddPosition(p) => addPosition(p)
   }
 
-  private def value: Future[PortfolioPricingError \/ Double] = {
-    val date = Calendar.getInstance
+  private def value: Future[Option[Double]] = {
+    val date = new GregorianCalendar(2016, 2, 4) // Calendar.getInstance
 
-    PortfolioPricer.price(portfolio)(builder.marketFactors(date)(parameters))
+    portfolio.price(builder.marketFactors(date)(parameters), parameters)
   }
 
   private def addPosition(position: Position): Unit = {
     portfolio = portfolio.addPosition(position)
   }
 
-  private def valueAtRisk(thresholdLoss: Double,
-                          simulations: Long): Future[List[PortfolioPricingError] \/ VaR] = {
+  private def valueAtRisk(
+      thresholdLoss: Double,
+      simulations: Long): Future[Option[VaR]] = {
     val clusterSize = 100
 
     OneDayValueAtRiskCalculator(thresholdLoss, simulations)(
       builder,
       parameters,
       ActorSystem(),
-      clusterSize).run(portfolio, Calendar.getInstance)
+      clusterSize).run(portfolio, new GregorianCalendar(2016, 2, 4))
   }
 }
 

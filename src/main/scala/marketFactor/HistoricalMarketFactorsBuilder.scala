@@ -2,11 +2,12 @@ package marketFactor
 
 import java.util.Calendar
 
-import data.DataFetcher
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import marketFactor.MarketFactorsGenerator.CurrentFactors
-import model.{Equity, EquityOption, Portfolio}
-import util.Math.volatilityOfChange
+import model.{Instrument, Portfolio}
+import model.equity.Equity
+import model.option.EquityOption
+import util.Math.logVolatilityOfChange
 import util.Time.daysDiff
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -16,25 +17,24 @@ import scalaz.std.FutureInstances
 
 /**
   * Builds market factors based on the data from the data fetcher.
-  * @param dataFetcher data to be used for the market factors
   */
-case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher)
-    extends MarketFactorsBuilder
-    with FutureInstances {
+case object HistoricalMarketFactorsBuilder extends MarketFactorsBuilder with FutureInstances {
   override def oneDayForecastMarketFactors(portfolio: Portfolio, date: Calendar)(
       implicit parameters: MarketFactorsParameters): Future[MarketFactorsGenerator] = {
 
-    /* Equities in alphabetical order */
-    val equities: List[Equity] = portfolio.positions
-      .map(_.instrument)
-      .map {
-        case e: Equity => e
-        case o: EquityOption => o.underlying
-      }
-      .sortBy(_.ticker)
+    val instruments =
+      portfolio.positions
+        .map(_.instrument)
+        .foldLeft(List.empty[Instrument])({
+          case (acc, e: Equity) => e :: acc
+          case (acc, eo: EquityOption) => eo :: eo.underlying :: acc
+          case (_, _) => Nil
+        })
+
+    val f = List[Instrument](Equity("Bla"))
 
     /* Current factors */
-    val mapCurrentFactors: Map[Equity, Future[Option[CurrentFactors]]] = equities.map(equity => {
+    val mapCurrentFactors: Map[Instrument, Future[Option[CurrentFactors]]] = instruments.map(instrument => {
       val from = date.clone().asInstanceOf[Calendar]
       from.add(Calendar.DATE, -parameters.horizon.toInt)
       val to = date.clone().asInstanceOf[Calendar]
@@ -42,41 +42,40 @@ case class HistoricalMarketFactorsBuilder(dataFetcher: DataFetcher)
       /* Build current factors for equity based on data from fetcher */
       val futureCurrentFactors = (
         for {
-          price <- OptionT(dataFetcher.historicalPrice(equity, date)).map(_.adjusted)
-          priceHistory <- OptionT(
-            dataFetcher.historicalPrices(equity, from, to).map(_.map(_.map(_.adjusted))))
-        } yield CurrentFactors(price, volatilityOfChange(priceHistory), priceHistory)
+          price <- OptionT(instrument.historicalPrice(date)).map(_.adjusted)
+          priceHistory <- OptionT(instrument.historicalPrices(from, to).map(_.map(_.map(_.adjusted))))
+        } yield CurrentFactors(price, logVolatilityOfChange(priceHistory), priceHistory)
       ).run
 
-      equity -> futureCurrentFactors
+      instrument -> futureCurrentFactors
     })(scala.collection.breakOut)
 
-    /* Convert map of future to future of map */
-    val futureCurrentFactors = Future
-      .sequence(mapCurrentFactors.map(entry => entry._2.map(i => (entry._1, i))))
-      .map(_.toMap)
+    val futureCurrentFactors = for {
+      currentFactors <- Future.sequence(mapCurrentFactors.map(entry => entry._2.map(i => (entry._1, i)))).map(_.toMap)
+      filteredCurrentFactors = currentFactors.collect {
+        case (key, Some(value)) => (key, value)
+      }
+    } yield filteredCurrentFactors
 
     for {
       currentFactors <- futureCurrentFactors
     } yield OneDayGBMMarketFactorsGenerator(date, parameters.riskFreeRate, currentFactors)
   }
 
-  override def marketFactors(date: Calendar)(
-      implicit parameters: MarketFactorsParameters): MarketFactors = {
+  override def marketFactors(date: Calendar)(implicit parameters: MarketFactorsParameters): MarketFactors = {
     new MarketFactors {
-      override protected def price(equity: Equity): Future[Option[Double]] = {
-        OptionT(dataFetcher.historicalPrice(equity, date)).map(_.adjusted).run
+      override protected def price(instrument: Instrument): Future[Option[Double]] = {
+        OptionT(instrument.historicalPrice(date)).map(_.adjusted).run
       }
 
-      override protected def volatility(equity: Equity): Future[Option[Double]] = {
+      override protected def volatility(instrument: Instrument): Future[Option[Double]] = {
         val from = date.clone().asInstanceOf[Calendar]
         from.add(Calendar.DATE, -parameters.horizon.toInt)
         val to = date.clone().asInstanceOf[Calendar]
 
         (for {
-          priceHistory <- OptionT(
-            dataFetcher.historicalPrices(equity, from, to).map(_.map(_.map(_.adjusted))))
-        } yield volatilityOfChange(priceHistory)).run
+          priceHistory <- OptionT(instrument.historicalPrices(from, to).map(_.map(_.map(_.adjusted))))
+        } yield logVolatilityOfChange(priceHistory)).run
       }
 
       override protected def daysToMaturity(maturity: Calendar): Future[Option[Double]] =

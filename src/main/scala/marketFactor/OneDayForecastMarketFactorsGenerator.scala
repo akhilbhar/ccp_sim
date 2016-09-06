@@ -5,7 +5,7 @@
 //import akka.NotUsed
 //import akka.stream.scaladsl.{Flow, Sink, Source}
 //import marketFactor.MarketFactorsGenerator.CurrentFactors
-//import model.Equity
+//import model.equity.Equity
 //import org.apache.commons.math3.random.{
 //  CorrelatedRandomVectorGenerator,
 //  GaussianRandomGenerator,

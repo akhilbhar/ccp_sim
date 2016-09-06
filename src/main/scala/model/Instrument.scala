@@ -1,14 +1,17 @@
 package model
 
-import java.util.Calendar
+import data.DataSource
+import marketFactor.MarketFactor.Price
+import marketFactor.MarketFactors
+import pricer.{MarkToMarket, PricingStrategy}
 
-sealed trait Instrument
+import scala.concurrent.Future
 
-case class Equity(ticker: String) extends Instrument
+trait Instrument extends DataSource with PricingStrategy with MarkToMarket {
+  override def markToMarket(implicit factors: MarketFactors): Future[Option[Double]] = {
+    val priceFactor = Price(this)
 
-sealed trait EquityOption extends Instrument {
-  def underlying: Equity
+    /* Gets the price factor from the market factors */
+    factors(priceFactor)
+  }
 }
-
-case class PutOption(underlying: Equity, strike: Double, maturity: Calendar) extends EquityOption
-case class CallOption(underlying: Equity, strike: Double, maturity: Calendar) extends EquityOption

@@ -2,17 +2,13 @@ package data
 
 import java.util.Calendar
 
-import model.{Equity, Price}
+import model.PriceEntry
 
 import scala.concurrent.Future
 
-/**
-  * Trait for fetching historical date.
-  */
-trait DataFetcher {
-  def historicalPrice(equity: Equity, date: Calendar): Future[Option[Price]]
+trait DataSource {
 
-  def historicalPrices(equity: Equity,
-                       from: Calendar,
-                       to: Calendar): Future[Option[Vector[Price]]]
+  def historicalPrice(date: Calendar): Future[Option[PriceEntry]]
+  def historicalPrices(from: Calendar, to: Calendar): Future[Option[Vector[PriceEntry]]]
+
 }

@@ -1,8 +1,7 @@
-package `var`
+package valueAtRisk
 
 import java.util.Calendar
 
-import `var`.OneDayValueAtRiskCalculator.VaR
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Balance, Flow, GraphDSL, Keep, Merge, Sink}
@@ -11,12 +10,13 @@ import breeze.numerics.round
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import marketFactor.{MarketFactors, MarketFactorsBuilder}
 import model.Portfolio
-import pricer.{PortfolioPricer, PortfolioPricingError}
+import valueAtRisk.OneDayValueAtRiskCalculator.VaR
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scalaz._
 import scalaz.Scalaz._
-import scalaz.{-\/, \/, \/-}
+import util.Transformer.sequence
 
 /**
   * Distributed computation of the value at risk using a Monte Carlo simulation.
@@ -40,10 +40,11 @@ case class OneDayValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)
     * @param date the date of the analysis
     * @return the VaR and the outcome of each scenario or a list of errors.
     */
-  def run(portfolio: Portfolio, date: Calendar): Future[List[PortfolioPricingError] \/ VaR] = {
+  def run(portfolio: Portfolio, date: Calendar): Future[Option[VaR]] = {
     implicit val materializer = ActorMaterializer()
 
-    val sourceF = builder.oneDayForecastMarketFactors(portfolio, date).map(_.factors)
+    val sourceF =
+      builder.oneDayForecastMarketFactors(portfolio, date).map(_.factors)
 
     val resultsF =
       sourceF
@@ -52,17 +53,14 @@ case class OneDayValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)
             .via(balancer(simulateOneDayPrice(portfolio), clusterSize))
             .toMat(Sink.seq)(Keep.right)
             .run())
-        .map(_.flatten)
         .flatMap(Future.sequence(_))
         .map(_.toList)
 
-    val groupedResultsF = resultsF.map(_.separate).map(t => { (t._1, t._2.sorted) })
+    val sortedResultsF = resultsF.map(_.sorted).map(sequence)
 
-    groupedResultsF.map({
-      case t if t._1.isEmpty =>
-        \/-(VaR(t._2(round(thresholdLoss * simulations).toInt - 1), t._2))
-      case t => -\/(t._1)
-    })
+    (for {
+      results <- OptionT(sortedResultsF)
+    } yield VaR(results(round(thresholdLoss * simulations).toInt - 1), results)).run
   }
 
   /**
@@ -74,12 +72,12 @@ case class OneDayValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)
     * @tparam Out output of the flow
     * @return Flow outputting all the computed scenarios
     */
-  private def balancer[In, Out](worker: Flow[In, Out, Any],
-                                workerCount: Int): Flow[In, Out, NotUsed] = {
+  private def balancer[In, Out](worker: Flow[In, Out, Any], workerCount: Int): Flow[In, Out, NotUsed] = {
     import akka.stream.scaladsl.GraphDSL.Implicits._
 
     Flow.fromGraph(GraphDSL.create() { implicit b =>
-      val balancer = b.add(Balance[In](workerCount, waitForAllDownstreams = true))
+      val balancer =
+        b.add(Balance[In](workerCount, waitForAllDownstreams = true))
       val merge = b.add(Merge[Out](workerCount))
 
       for (_ <- 1 to workerCount) {
@@ -98,12 +96,8 @@ case class OneDayValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)
     * @param portfolio portfolio to be valued.
     * @return value of the portfolio or an error.
     */
-  private def simulateOneDayPrice(portfolio: Portfolio) =
-    Flow[Option[MarketFactors]].map(factorsO => {
-      for {
-        factors <- factorsO
-      } yield PortfolioPricer.price(portfolio)(factors)
-    })
+  private def simulateOneDayPrice(portfolio: Portfolio) = Flow[MarketFactors].map(portfolio.price(_, parameters))
+
 }
 
 object OneDayValueAtRiskCalculator {

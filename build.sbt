@@ -36,5 +36,7 @@ libraryDependencies ++= Seq(
   "com.assembla.scala-incubator" %% "graph-core" % "1.11.0",
   "com.softwaremill.macwire" %% "macros" % "2.2.3" % "provided",
   "com.softwaremill.macwire" %% "util" % "2.2.3",
-  "com.typesafe.akka" %% "akka-stream" % "2.4.9"
+  "com.typesafe.akka" %% "akka-stream" % "2.4.9",
+  "com.typesafe.play" %% "play-json" % "2.5.6",
+  "com.chuusai" %% "shapeless" % "2.3.2"
 )

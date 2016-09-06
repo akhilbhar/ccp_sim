@@ -1,7 +1,8 @@
 package participant
 
 import akka.actor.ActorRef
-import model.{Instrument, LongPosition, ShortPosition}
+import custodian.{LongPosition, ShortPosition}
+import model.Instrument
 import participant.Client.AddPosition
 
 /**
