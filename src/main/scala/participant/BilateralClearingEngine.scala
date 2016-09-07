@@ -2,7 +2,7 @@ package participant
 
 import akka.actor.ActorRef
 import custodian.{LongPosition, ShortPosition}
-import model.Instrument
+import instrument.Instrument
 import participant.Client.AddPosition
 
 /**

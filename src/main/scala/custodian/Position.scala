@@ -1,9 +1,9 @@
 package custodian
 
 import akka.actor.ActorRef
+import instrument.Instrument
 import marketFactor.MarketFactors
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
-import model.Instrument
 import pricer._
 
 import scala.concurrent.Future

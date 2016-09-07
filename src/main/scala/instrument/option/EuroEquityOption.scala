@@ -1,9 +1,9 @@
-package model.option
+package instrument.option
 import java.util.Calendar
 
 import marketFactor.MarketFactors
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
-import model.equity.Equity
+import instrument.equity.Equity
 import pricingModel.optionPricing.{BlackSholes, EquityOptionModel}
 
 import scala.concurrent.Future

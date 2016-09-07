@@ -2,12 +2,13 @@ package marketFactor
 
 import java.util.Calendar
 
+import instrument.Instrument
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import marketFactor.MarketFactorsGenerator.CurrentFactors
-import model.{Instrument, Portfolio}
-import model.equity.Equity
-import model.option.EquityOption
-import util.Math.logVolatilityOfChange
+import model.Portfolio
+import instrument.equity.Equity
+import instrument.option.EquityOption
+import util.Math._
 import util.Time.daysDiff
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -30,8 +31,6 @@ case object HistoricalMarketFactorsBuilder extends MarketFactorsBuilder with Fut
           case (acc, eo: EquityOption) => eo :: eo.underlying :: acc
           case (_, _) => Nil
         })
-
-    val f = List[Instrument](Equity("Bla"))
 
     /* Current factors */
     val mapCurrentFactors: Map[Instrument, Future[Option[CurrentFactors]]] = instruments.map(instrument => {
@@ -78,6 +77,14 @@ case object HistoricalMarketFactorsBuilder extends MarketFactorsBuilder with Fut
         } yield logVolatilityOfChange(priceHistory)).run
       }
 
+      override protected def mean(instrument: Instrument): Future[Option[Double]] = {
+        val from = Calendar.getInstance()
+        val to = Calendar.getInstance()
+        from.add(Calendar.DAY_OF_MONTH, -parameters.horizon.toInt)
+
+        OptionT(instrument.historicalPrices(from, to)).map(_.map(_.adjusted)).map(meanOfChange).run
+      }
+
       override protected def daysToMaturity(maturity: Calendar): Future[Option[Double]] =
         Future.successful({
           val now = Calendar.getInstance()
@@ -89,6 +96,8 @@ case object HistoricalMarketFactorsBuilder extends MarketFactorsBuilder with Fut
 
       override protected def riskFreeRate: Future[Option[Double]] =
         Future.successful(Some(parameters.riskFreeRate))
+
+      override protected def dividendYield(instrument: Instrument): Future[Option[Double]] = instrument.dividendYield
     }
   }
 }

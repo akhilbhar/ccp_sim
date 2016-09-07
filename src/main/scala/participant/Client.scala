@@ -34,10 +34,11 @@ case class Client(name: String,
     case ValueAtRisk(thresholdLoss, simulations) =>
       pipe(valueAtRisk(thresholdLoss, simulations)) to sender
     case AddPosition(p) => addPosition(p)
+    case MarkToMarket => pipe(markToMarket) to sender
   }
 
   private def value: Future[Option[Double]] = {
-    val date = new GregorianCalendar(2016, 2, 4) // Calendar.getInstance
+    val date = Calendar.getInstance
 
     portfolio.price(builder.marketFactors(date)(parameters), parameters)
   }
@@ -51,11 +52,19 @@ case class Client(name: String,
       simulations: Long): Future[Option[VaR]] = {
     val clusterSize = 100
 
+    val now = Calendar.getInstance()
+
     OneDayValueAtRiskCalculator(thresholdLoss, simulations)(
       builder,
       parameters,
       ActorSystem(),
-      clusterSize).run(portfolio, new GregorianCalendar(2016, 2, 4))
+      clusterSize).run(portfolio, now)
+  }
+
+  private def markToMarket: Future[Option[Double]] = {
+    val date = new GregorianCalendar(2016, 2, 4) // Calendar.getInstance
+
+    portfolio.markToMarket(builder.marketFactors(date)(parameters))
   }
 }
 
@@ -68,4 +77,5 @@ object Client {
   case class AddPosition(position: Position)
   case object Value
   case class ValueAtRisk(thresholdLoss: Double, simulations: Long)
+  case object MarkToMarket
 }

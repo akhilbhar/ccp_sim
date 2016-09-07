@@ -1,14 +1,16 @@
-package model.equity
+package instrument.equity
 
 import java.util.Calendar
 
+import instrument.Instrument
 import marketFactor.MarketFactors
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
-import model.{Instrument, PriceEntry}
+import model.PriceEntry
 import yahoofinance.histquotes.Interval
 import yahoofinance.{Stock, YahooFinance}
 
 import scala.collection.JavaConversions
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scalaz.OptionT
@@ -18,7 +20,10 @@ import scalaz.std.FutureInstances
   * Created by dennis on 3/9/16.
   */
 final case class Equity(ticker: String) extends Instrument with FutureInstances {
-  override def price(implicit factors: MarketFactors, factorsParameters: MarketFactorsParameters): Future[Option[Double]] = {
+  private val memoizedPrices = new TrieMap[(Calendar, Calendar), Future[Option[Vector[PriceEntry]]]]()
+
+  override def price(implicit factors: MarketFactors,
+                     factorsParameters: MarketFactorsParameters): Future[Option[Double]] = {
     markToMarket
   }
 
@@ -31,9 +36,13 @@ final case class Equity(ticker: String) extends Instrument with FutureInstances 
   }
 
   override def historicalPrices(from: Calendar, to: Calendar): Future[Option[Vector[PriceEntry]]] = {
-    Future {
+    memoizedPrices.getOrElseUpdate((from, to), Future {
       Option(YahooFinance.get(ticker, from, to, Interval.DAILY)).map(stockToHistoricalPricesVector)
-    }
+    })
+  }
+
+  override def dividendYield: Future[Option[Double]] = Future {
+    Option(YahooFinance.get(ticker).getDividend.getAnnualYield.doubleValue / 100.0)
   }
 
   private def stockToHistoricalPricesVector(stock: Stock): Vector[PriceEntry] = {

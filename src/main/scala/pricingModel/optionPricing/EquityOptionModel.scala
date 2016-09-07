@@ -4,10 +4,10 @@ import java.util.Calendar
 
 import breeze.numerics._
 import breeze.stats.distributions.Gaussian
-import marketFactor.MarketFactor.{DaysToMaturity, Price, RiskFreeRate, Volatility}
+import marketFactor.MarketFactor._
 import marketFactor.{MarketFactor, MarketFactors}
-import model.equity.Equity
-import model.option._
+import instrument.equity.Equity
+import instrument.option._
 
 import scala.concurrent.Future
 import scalaz.OptionT
@@ -18,6 +18,7 @@ import breeze.linalg.max
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import spire.std._
 import util.Math.meanOfChange
+
 import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
@@ -25,13 +26,15 @@ import scala.concurrent.ExecutionContext.Implicits.global
   */
 sealed trait EquityOptionModel {
 
-  def price(option: EquityOption)(implicit factors: MarketFactors, factorsParameters: MarketFactorsParameters): Future[Option[Double]]
+  def price(option: EquityOption)(implicit factors: MarketFactors,
+                                  factorsParameters: MarketFactorsParameters): Future[Option[Double]]
 
 }
 
 object BlackSholes extends EquityOptionModel with FutureInstances {
 
-  override def price(option: EquityOption)(implicit factors: MarketFactors, factorsParameters: MarketFactorsParameters): Future[Option[Double]] = {
+  override def price(option: EquityOption)(implicit factors: MarketFactors,
+                                           factorsParameters: MarketFactorsParameters): Future[Option[Double]] = {
     option.optionType match {
       case Put =>
         OptionT(parameters(option)).map(put).run
@@ -79,7 +82,8 @@ object BlackSholes extends EquityOptionModel with FutureInstances {
 }
 
 object Binomial extends EquityOptionModel with FutureInstances {
-  override def price(option: EquityOption)(implicit factors: MarketFactors, factorsParameters: MarketFactorsParameters): Future[Option[Double]] = {
+  override def price(option: EquityOption)(implicit factors: MarketFactors,
+                                           factorsParameters: MarketFactorsParameters): Future[Option[Double]] = {
     (for {
       param <- OptionT(parameters(option))
     } yield priceHelper(option, param, 100)).run
@@ -105,7 +109,7 @@ object Binomial extends EquityOptionModel with FutureInstances {
       if (scenarios(i) < 0) scenarios(i) = 0
     }
 
-    val p = (exp(param.underlyingHistReturn * t) - down) / (up - down)
+    val p = (exp((param.underlyingHistReturn - param.dividendYield) * t) - down) / (up - down)
 
     val binomials = new Array[Double](n)
 
@@ -113,7 +117,7 @@ object Binomial extends EquityOptionModel with FutureInstances {
       for (j <- 0 to i) {
         /*
                   scenario(i)
-               *p/          \*(1-p)
+         *p/          \*(1-p)
                 /            \
            scenario(i)  scenario(i + 1)
          */
@@ -197,7 +201,6 @@ object Binomial extends EquityOptionModel with FutureInstances {
 //  private case class Node(value: Double, down: Tree, up: Tree) extends Tree
 //  private case class Leaf(value: Double) extends Tree
 
-
 object Helper extends FutureInstances {
   case class Parameters(daysToMaturity: Double,
                         spot: Double,
@@ -205,23 +208,21 @@ object Helper extends FutureInstances {
                         riskFreeRate: Double,
                         volatility: Double,
                         underlyingPrice: Double,
-                        underlyingHistReturn: Double) {
-    def annualizedVolatility = volatility * sqrt(252.0)
+                        underlyingHistReturn: Double,
+                        dividendYield: Double) {
+    def annualizedVolatility = volatility * sqrt(365.0)
     def timeToMaturity = daysToMaturity / 365.0
   }
 
-  def parameters(option: EquityOption)(implicit factors: MarketFactors, parameters: MarketFactorsParameters): Future[Option[Parameters]] = {
+  def parameters(option: EquityOption)(implicit factors: MarketFactors,
+                                       parameters: MarketFactorsParameters): Future[Option[Parameters]] = {
     val daysToMaturityF = factors(DaysToMaturity(option.maturity))
     val spotF = factors(Price(option.underlying))
     val riskFreeRateF = factors(RiskFreeRate)
     val volatilityF = factors(Volatility(option.underlying))
     val underlyingPriceF = factors(Price(option.underlying))
-
-    val from = Calendar.getInstance()
-    val to = Calendar.getInstance()
-    from.add(Calendar.DAY_OF_MONTH, -parameters.horizon.toInt)
-
-    val underlyingHistF = OptionT(option.underlying.historicalPrices(from, to)).map(_.map(_.adjusted)).run
+    val underlyingHistF = factors(Mean(option.underlying))
+    val dividendYieldF = factors(DividendYield(option.underlying))
 
     {
       for {
@@ -230,8 +231,17 @@ object Helper extends FutureInstances {
         riskFreeRate <- OptionT(riskFreeRateF)
         volatility <- OptionT(volatilityF)
         underlyingPrice <- OptionT(underlyingPriceF)
-        underlyingHistReturn <- OptionT(underlyingHistF).map(meanOfChange)
-      } yield Parameters(daysToMaturity, spot, option.strike, riskFreeRate, volatility, underlyingPrice, underlyingHistReturn)
+        underlyingHistReturn <- OptionT(underlyingHistF)
+        dividendYield <- OptionT(dividendYieldF)
+      } yield
+        Parameters(daysToMaturity,
+                   spot,
+                   option.strike,
+                   riskFreeRate,
+                   volatility,
+                   underlyingPrice,
+                   underlyingHistReturn,
+                   dividendYield)
     }.run
   }
 }

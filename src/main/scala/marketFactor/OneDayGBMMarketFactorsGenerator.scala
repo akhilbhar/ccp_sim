@@ -7,8 +7,8 @@ import breeze.linalg.{DenseMatrix, DenseVector, cholesky}
 import breeze.numerics.exp
 import breeze.stats.covmat
 import breeze.stats.distributions.Gaussian
+import instrument.Instrument
 import marketFactor.MarketFactorsGenerator.CurrentFactors
-import model.Instrument
 import util.Math._
 import util.Time.daysDiff
 
@@ -105,6 +105,10 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
       Future.successful(currentFactors.get(instrument).map(_.volatility))
     }
 
+    override protected def mean(instrument: Instrument): Future[Option[Double]] = {
+      Future.successful(currentFactors.get(instrument).map(_.priceHistory).map(meanOfChange))
+    }
+
     override protected def daysToMaturity(maturity: Calendar): Future[Option[Double]] =
       Future.successful({
         val now = Calendar.getInstance()
@@ -116,5 +120,7 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
       })
 
     override protected def riskFreeRate: Future[Option[Double]] = Future.successful(Some(rate))
+
+    override protected def dividendYield(instrument: Instrument): Future[Option[Double]] = instrument.dividendYield
   }
 }

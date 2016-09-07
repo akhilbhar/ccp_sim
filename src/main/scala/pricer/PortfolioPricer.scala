@@ -2,8 +2,8 @@
 //
 //import marketFactor.MarketFactors
 //import model._
-//import model.equity.Equity
-//import model.option.EquityOption
+//import instrument.equity.Equity
+//import instrument.option.EquityOption
 //import pricer.PortfolioPricingError.UnderlyingPricingErrors
 //
 //import scala.concurrent.ExecutionContext.Implicits.global

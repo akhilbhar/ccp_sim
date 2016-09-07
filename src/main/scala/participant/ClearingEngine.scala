@@ -1,7 +1,7 @@
 package participant
 
 import akka.actor.ActorRef
-import model.Instrument
+import instrument.Instrument
 
 /**
   * Performs transactions.

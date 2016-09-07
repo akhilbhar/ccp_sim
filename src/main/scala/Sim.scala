@@ -3,15 +3,15 @@ import java.util.{Calendar, GregorianCalendar, TimeZone}
 import akka.actor.ActorSystem
 import akka.util.Timeout
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
-import model.equity.Equity
-import model.option.{Call, EuroEquityOption}
+import instrument.equity.Equity
+import instrument.option.{Call, EuroEquityOption}
 import participant.{BilateralClearingEngine, Client}
 import valueAtRisk.OneDayValueAtRiskCalculator.VaR
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.util.Timeout
 import marketFactor.HistoricalMarketFactorsBuilder
-import pricingModel.optionPricing.Binomial
+import pricingModel.optionPricing.{Binomial, BlackSholes}
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -60,7 +60,7 @@ object Sim extends App {
 //  BilateralClearingEngine.performTransaction(idtCall, 1, buyer, seller)
 
   implicit val timeout = Timeout(600 seconds)
-//
+
   ask(buyer, Client.Value).mapTo[Option[Double]] onComplete {
     case Success(v) => println(s"Value: $v")
     case Failure(e) => println(s"Error $e")
@@ -78,15 +78,30 @@ object Sim extends App {
 
 //  ask(buyer, Client.ValueAtRisk(0.05, 10000))
 //    .mapTo[Option[VaR]] onComplete {
-//    case Success(v) => println("VaR: " + v)
+//    case Success(v) => println("VaR: " + v.map(_.valueAtRisk))
 //    case Failure(e) => {
 //      println("Error: " + e)
 //      e.getStackTrace.foreach(println(_))
 //    }
 //  }
 
-//  val tesla = Equity("TSLA")
-//  val teslaCall = EuroEquityOption(Call, tesla, 20, new GregorianCalendar(2016, 8, 16))
+//  ask(buyer, Client.ValueAtRisk(0.05, 10000))
+//    .mapTo[Option[VaR]] onComplete {
+//    case Success(v) => println("VaR: " + v.map(_.valueAtRisk))
+//    case Failure(e) => {
+//      println("Error: " + e)
+//      e.getStackTrace.foreach(println(_))
+//    }
+//  }
 //
-//  teslaCall.historicalPrice(Calendar.getInstance())
+
+//  ibm.historicalPrices(new GregorianCalendar(2016, 1, 4), new GregorianCalendar(2016, 2, 4)).onComplete({
+//    case Success(v) => println(v.map(_.head.adjusted))
+//    case Failure(e) => println(e)
+//  })
+//
+//  ibm.historicalPrices(new GregorianCalendar(2016, 1, 4), new GregorianCalendar(2016, 2, 4)).onComplete({
+//    case Success(v) => println(v.map(_.head.adjusted))
+//    case Failure(e) => println(e)
+//  })
 }
