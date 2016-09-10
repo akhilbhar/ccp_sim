@@ -1,4 +1,13 @@
-//package participant
+package participant
+
+import akka.actor.{Actor, ActorRef}
+import valueAtRisk.OneDayValueAtRiskCalculator.VaR
+import akka.pattern.ask
+import participant.Client.MarkToMarket
+
+import scala.concurrent.Future
+import scala.util.{Failure, Success}
+
 //
 //import akka.actor.{Actor, ActorRef, Props}
 //import model.Equity
@@ -40,4 +49,37 @@
 //
 //  def props(name: String, connections: Set[Connection]): Props =
 //    Props(Ccp(name, connections))
+//}
+
+//case class Ccp(name: String, clients: List[ActorRef]) extends Actor {
+//  var variationMargins: Map[ActorRef, Option[Double]]
+//  var initialMargins: Map[ActorRef, Option[Double]]
+//  val equity: Double
+//  val guaranteeFunds: Map[ActorRef, Double]
+//
+//  def initialSetup(client: ActorRef) =  {
+//    val valueAtRisk = (client ? VaR).asInstanceOf[Future[Option[Double]]]
+//    val markToMarket = (client ? MarkToMarket).asInstanceOf[Future[Option[Double]]]
+//
+//    valueAtRisk onComplete {
+//      case Success(v) => initialMargins = initialMargins + ((client, v))
+//      case Failure(e) => println("Error: " + e.getStackTrace)
+//    }
+//
+//    markToMarket onComplete {
+//      case Success(v) => variationMargins = variationMargins + ((client, v))
+//      case Failure(e) => println("Error: " + e.getStackTrace)
+//    }
+//  }
+//
+//  def marginCall(client: ActorRef) = {
+//    val markToMarket = (client ? MarkToMarket).asInstanceOf[Future[Option[Double]]]
+//
+//    markToMarket onComplete {
+//      case Success(v) => {
+//
+//      }
+//    }
+//  }
+//
 //}

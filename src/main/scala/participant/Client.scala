@@ -1,6 +1,6 @@
 package participant
 
-import java.util.{Calendar, GregorianCalendar}
+import java.util.Calendar
 
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.pattern.pipe
@@ -8,13 +8,14 @@ import com.softwaremill.macwire._
 import custodian.Position
 import marketFactor.MarketFactorsBuilder
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
-import model.Portfolio
+import model.{Portfolio, PortfolioError}
 import participant.Client._
-import valueAtRisk.OneDayValueAtRiskCalculator
+import valueAtRisk.{OneDayValueAtRiskCalculator, ValueAtRiskError}
 import valueAtRisk.OneDayValueAtRiskCalculator.VaR
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scalaz.\/
 import scalaz.std.{FutureInstances, OptionInstances}
 
 /**
@@ -37,7 +38,7 @@ case class Client(name: String,
     case MarkToMarket => pipe(markToMarket) to sender
   }
 
-  private def value: Future[Option[Double]] = {
+  private def value: Future[\/[PortfolioError, Double]] = {
     val date = Calendar.getInstance
 
     portfolio.price(builder.marketFactors(date)(parameters), parameters)
@@ -49,7 +50,7 @@ case class Client(name: String,
 
   private def valueAtRisk(
       thresholdLoss: Double,
-      simulations: Long): Future[Option[VaR]] = {
+      simulations: Long): Future[ValueAtRiskError \/ VaR] = {
     val clusterSize = 100
 
     val now = Calendar.getInstance()
@@ -61,8 +62,8 @@ case class Client(name: String,
       clusterSize).run(portfolio, now)
   }
 
-  private def markToMarket: Future[Option[Double]] = {
-    val date = new GregorianCalendar(2016, 2, 4) // Calendar.getInstance
+  private def markToMarket: Future[\/[PortfolioError, Double]] = {
+    val date = Calendar.getInstance
 
     portfolio.markToMarket(builder.marketFactors(date)(parameters))
   }

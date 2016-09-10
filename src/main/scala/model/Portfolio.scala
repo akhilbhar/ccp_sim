@@ -1,15 +1,16 @@
 package model
 
-import custodian.Position
+import custodian.{Position, PositionError}
 import marketFactor.MarketFactors
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import pricer._
-import util.Math.sumList
 
-import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scalaz.Scalaz._
+import scalaz.{EitherT, NonEmptyList, \/}
 
-case class Portfolio(positions: List[Position]) extends MarkToMarket with PricingStrategy {
+case class Portfolio(positions: List[Position]) {
   def addPosition(position: Position): Portfolio = {
     Portfolio(position +: positions)
   }
@@ -18,10 +19,24 @@ case class Portfolio(positions: List[Position]) extends MarkToMarket with Pricin
     Portfolio(positions.filterNot(_.equals(position)))
   }
 
-  override def markToMarket(implicit factors: MarketFactors): Future[Option[Double]] = {
-    Future.sequence(positions.map(_.markToMarket)).map(sumList(_))
+  def markToMarket(implicit factors: MarketFactors): Future[PortfolioError \/ Double] = {
+    val total = for {
+      prices <- Future.sequence(positions.map(_.markToMarket))
+    } yield \/.fromEither(prices.map(_.validation.toValidationNel).reduceLeft((l, r) => (l |@| r)(_ + _)).toEither)
+
+    EitherT(total).leftMap(UnderlyingMarkToMarketError).run
   }
-  override def price(implicit factors: MarketFactors, factorsParameters: MarketFactorsParameters): Future[Option[Double]] = {
-    Future.sequence(positions.map(_.price)).map(sumList(_))
+
+  def price(implicit factors: MarketFactors,
+            factorsParameters: MarketFactorsParameters): Future[PortfolioError \/ Double] = {
+    val total = for {
+      prices <- Future.sequence(positions.map(_.price))
+    } yield \/.fromEither(prices.map(_.validation.toValidationNel).reduceLeft((l, r) => (l |@| r)(_ + _)).toEither)
+
+    EitherT(total).leftMap(UnderlyingPricingError).run
   }
 }
+
+sealed trait PortfolioError
+case class UnderlyingPricingError(errors: NonEmptyList[PositionError]) extends PortfolioError
+case class UnderlyingMarkToMarketError(errors: NonEmptyList[PositionError]) extends PortfolioError

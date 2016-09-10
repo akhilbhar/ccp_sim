@@ -1,21 +1,24 @@
-import java.util.{Calendar, GregorianCalendar, TimeZone}
+import java.util.{GregorianCalendar, TimeZone}
 
-import akka.actor.ActorSystem
-import akka.util.Timeout
-import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
-import instrument.equity.Equity
-import instrument.option.{Call, EuroEquityOption}
-import participant.{BilateralClearingEngine, Client}
-import valueAtRisk.OneDayValueAtRiskCalculator.VaR
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.util.Timeout
+import data.GoogleSource
+import instrument.Equity
+import instrument.EquityOption.Call
+import instrument.option.EuroEquityOption
 import marketFactor.HistoricalMarketFactorsBuilder
-import pricingModel.optionPricing.{Binomial, BlackSholes}
+import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
+import model.PortfolioError
+import participant.{BilateralClearingEngine, Client}
+import pricingModel.equityOption.{Binomial, BlackSholes}
+import valueAtRisk.OneDayValueAtRiskCalculator.VaR
+import valueAtRisk.ValueAtRiskError
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
-import scala.concurrent.ExecutionContext.Implicits.global
+import scalaz.\/
 
 
 /**
@@ -36,7 +39,7 @@ object Sim extends App {
 
   val apple = Equity("AAPL")
   val appleMaturity = new GregorianCalendar(2016, 8, 16)
-  val appleCall = EuroEquityOption(Call, apple, 90, appleMaturity)(Binomial)
+  val appleCall = EuroEquityOption(Call, apple, 90, appleMaturity)(model = Binomial)
 
   val google = Equity("GOOG")
   val microsoft = Equity("MSFT")
@@ -50,42 +53,34 @@ object Sim extends App {
   val idt = Equity("IDT")
   val idtCall = EuroEquityOption(Call, idt, 12.5, new GregorianCalendar(2016, 8, 16))
 
-//  BilateralClearingEngine.performTransaction(apple, 1, buyer, seller)
-//  BilateralClearingEngine.performTransaction(ibm, 1, buyer, seller)
-//  BilateralClearingEngine.performTransaction(Equity("BRK-B"), 1, buyer, seller)
-//  BilateralClearingEngine.performTransaction(Equity("NFLX"), 1, buyer, seller)
+  BilateralClearingEngine.performTransaction(apple, 1, buyer, seller)
+  BilateralClearingEngine.performTransaction(ibm, 1, buyer, seller)
+  BilateralClearingEngine.performTransaction(Equity("BRK-B"), 1, buyer, seller)
+  BilateralClearingEngine.performTransaction(Equity("NFLX"), 1, buyer, seller)
   BilateralClearingEngine.performTransaction(appleCall, 1, buyer, seller)
 //  BilateralClearingEngine.performTransaction(teslaCall, 1, buyer, seller)
 //  BilateralClearingEngine.performTransaction(ibmCall, 1, buyer, seller)
 //  BilateralClearingEngine.performTransaction(idtCall, 1, buyer, seller)
 
+//  Thread.sleep(2000)
+
   implicit val timeout = Timeout(600 seconds)
 
-  ask(buyer, Client.Value).mapTo[Option[Double]] onComplete {
-    case Success(v) => println(s"Value: $v")
-    case Failure(e) => println(s"Error $e")
-  }
-//
-//  apple.historicalPrice(new GregorianCalendar(2016, 2, 4)).onComplete({
-//    case Success(v) => println(v.map(_.adjusted))
-//    case Failure(e) => println(e)
-//  })
-//
-//  ibmCall.historicalPrice(new GregorianCalendar(2016, 2, 4)).onComplete({
-//    case Success(v) => println(v.map(_.adjusted))
-//    case Failure(e) => println(e)
-//  })
-
-//  ask(buyer, Client.ValueAtRisk(0.05, 10000))
-//    .mapTo[Option[VaR]] onComplete {
-//    case Success(v) => println("VaR: " + v.map(_.valueAtRisk))
-//    case Failure(e) => {
-//      println("Error: " + e)
-//      e.getStackTrace.foreach(println(_))
-//    }
+//  ask(buyer, Client.Value).mapTo[PortfolioError \/ Double] onComplete {
+//    case Success(v) => println(s"Value: $v")
+//    case Failure(e) => println(s"Error $e")
 //  }
 
-//  ask(buyer, Client.ValueAtRisk(0.05, 10000))
+  ask(buyer, Client.ValueAtRisk(0.01, 10000))
+    .mapTo[ValueAtRiskError \/ VaR] onComplete {
+    case Success(v) => println("VaR: " + v.map(_.valueAtRisk))
+    case Failure(e) => {
+      println("Error: " + e)
+      e.getStackTrace.foreach(println(_))
+    }
+  }
+
+//  ask(buyer, Client.ValueAtRisk(0.01, 10000))
 //    .mapTo[Option[VaR]] onComplete {
 //    case Success(v) => println("VaR: " + v.map(_.valueAtRisk))
 //    case Failure(e) => {

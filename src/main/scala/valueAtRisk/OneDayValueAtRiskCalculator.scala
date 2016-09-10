@@ -9,14 +9,13 @@ import akka.stream.{ActorMaterializer, FlowShape}
 import breeze.numerics.round
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import marketFactor.{MarketFactors, MarketFactorsBuilder}
-import model.Portfolio
+import model.{Portfolio, PortfolioError}
 import valueAtRisk.OneDayValueAtRiskCalculator.VaR
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scalaz._
 import scalaz.Scalaz._
-import util.Transformer.sequence
+import scalaz._
 
 /**
   * Distributed computation of the value at risk using a Monte Carlo simulation.
@@ -40,7 +39,7 @@ case class OneDayValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)
     * @param date the date of the analysis
     * @return the VaR and the outcome of each scenario or a list of errors.
     */
-  def run(portfolio: Portfolio, date: Calendar): Future[Option[VaR]] = {
+  def run(portfolio: Portfolio, date: Calendar): Future[ValueAtRiskError \/ VaR] = {
     implicit val materializer = ActorMaterializer()
 
     val sourceF =
@@ -56,11 +55,14 @@ case class OneDayValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)
         .flatMap(Future.sequence(_))
         .map(_.toList)
 
-    val sortedResultsF = resultsF.map(_.sorted).map(sequence)
+    val sortedResultsF: Future[(List[PortfolioError], List[Double])] =
+      resultsF.map(_.separate).map(t => { (t._1, t._2.sorted) })
 
-    (for {
-      results <- OptionT(sortedResultsF)
-    } yield VaR(results(round(thresholdLoss * simulations).toInt - 1), results)).run
+    sortedResultsF.map({
+      case t if t._1.isEmpty =>
+        \/-(VaR(t._2(round(thresholdLoss * simulations).toInt - 1), t._2))
+      case t => -\/(PortfolioPricingError(t._1))
+    })
   }
 
   /**
@@ -103,3 +105,6 @@ case class OneDayValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)
 object OneDayValueAtRiskCalculator {
   case class VaR(valueAtRisk: Double, outcomes: List[Double])
 }
+
+sealed trait ValueAtRiskError
+case class PortfolioPricingError(errors: List[PortfolioError]) extends ValueAtRiskError

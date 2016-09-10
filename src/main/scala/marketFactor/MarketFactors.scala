@@ -1,11 +1,11 @@
 package marketFactor
 
-import java.util.Calendar
-
-import instrument.Instrument
+import data.DataError
+import instrument.{EquityOption, Instrument}
 import marketFactor.MarketFactor._
 
 import scala.concurrent.Future
+import scalaz.\/
 
 sealed trait MarketFactor
 
@@ -17,7 +17,7 @@ object MarketFactor {
 
   case class Mean(instrument: Instrument) extends MarketFactor
 
-  case class DaysToMaturity(maturity: Calendar) extends MarketFactor
+  case class DaysToMaturity(option: EquityOption) extends MarketFactor
 
   case class DividendYield(instrument: Instrument) extends MarketFactor
 
@@ -30,7 +30,7 @@ object MarketFactor {
   */
 trait MarketFactors {
 
-  def apply(factor: MarketFactor): Future[Option[Double]] = factor match {
+  def apply(factor: MarketFactor): Future[MarketFactorsError \/ Double] = factor match {
     case Price(instrument) => price(instrument)
     case Volatility(instrument) => volatility(instrument)
     case Mean(instrument) => mean(instrument)
@@ -39,16 +39,20 @@ trait MarketFactors {
     case RiskFreeRate => riskFreeRate
   }
 
-  protected def price(instrument: Instrument): Future[Option[Double]]
+  protected def price(instrument: Instrument): Future[MarketFactorsError \/ Double]
 
-  protected def volatility(instrument: Instrument): Future[Option[Double]]
+  protected def volatility(instrument: Instrument): Future[MarketFactorsError \/ Double]
 
-  protected def mean(instrument: Instrument): Future[Option[Double]]
+  protected def mean(instrument: Instrument): Future[MarketFactorsError \/ Double]
 
-  protected def daysToMaturity(maturity: Calendar): Future[Option[Double]]
+  protected def daysToMaturity(option: EquityOption): Future[MarketFactorsError \/ Double]
 
-  protected def dividendYield(instrument: Instrument): Future[Option[Double]]
+  protected def dividendYield(instrument: Instrument): Future[MarketFactorsError \/ Double]
 
-  protected def riskFreeRate: Future[Option[Double]]
+  protected def riskFreeRate: Future[MarketFactorsError \/ Double]
 
 }
+
+sealed trait MarketFactorsError
+case class MissingData(error: DataError) extends MarketFactorsError
+case class ExpiredOption(instrument: Instrument) extends MarketFactorsError
