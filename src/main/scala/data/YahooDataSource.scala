@@ -5,6 +5,7 @@ import java.util.Calendar
 import instrument.Equity
 import model.PriceEntry
 import yahoofinance.histquotes.Interval
+import yahoofinance.quotes.stock.StockQuote
 import yahoofinance.{Stock, YahooFinance}
 
 import scala.collection.JavaConversions
@@ -27,7 +28,20 @@ object YahooDataSource extends DataSource[Equity] with FutureInstances {
     val to = date.clone.asInstanceOf[Calendar]
     from.add(Calendar.DAY_OF_MONTH, -1)
 
-    EitherT(historicalPrices(equity, from, to)).map(_.head).run
+    if (isToday(date)) {
+      Future {
+        Try(YahooFinance.get(equity.ticker, from, to, Interval.DAILY)) match {
+          case Success(v) =>
+            Option(v) match {
+              case Some(stock) => \/-(stockQuoteToPriceEntry(stock.getQuote, date))
+              case None => -\/(DataNotFound(equity))
+            }
+          case Failure(e) => -\/(DataFetchingError(e))
+        }
+      }
+    } else {
+      EitherT(historicalPrices(equity, from, to)).map(_.head).run
+    }
   }
 
   override def historicalPrices(equity: Equity,
@@ -71,5 +85,23 @@ object YahooDataSource extends DataSource[Equity] with FutureInstances {
                      quote.getAdjClose.doubleValue())
       )
       .toVector
+  }
+
+  private def stockQuoteToPriceEntry(quote: StockQuote, date: Calendar) = {
+    PriceEntry(date,
+               0, //quote.getOpen.doubleValue(), // TODO Option type!
+               0, // quote.getDayHigh.doubleValue(),
+               0, // quote.getDayLow.doubleValue(),
+               quote.getAsk.doubleValue(),
+               quote.getAvgVolume,
+               quote.getAsk.doubleValue())
+  }
+
+  private def isToday(date: Calendar) = {
+    val now = Calendar.getInstance
+
+    now.get(Calendar.YEAR) == date.get(Calendar.YEAR) &&
+    now.get(Calendar.MONTH) == date.get(Calendar.MONTH) &&
+    now.get(Calendar.DAY_OF_MONTH) == date.get(Calendar.DAY_OF_MONTH)
   }
 }

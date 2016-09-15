@@ -20,7 +20,7 @@ trait MarketFactorsBuilder {
     * @param parameters parameters for the computation
     * @return a generator of forecasted market factors
     */
-  def oneDayForecastMarketFactors(portfolio: Portfolio, date: Calendar)(
+  def ForecastMarketFactors(portfolio: Portfolio, date: Calendar, simulatedDays: Int)(
       implicit parameters: MarketFactorsParameters): Future[MarketFactorsGenerator]
 
   /**

@@ -21,7 +21,7 @@ import scalaz.{-\/, EitherT, \/, \/-}
   * Builds market factors based on the data from the data fetcher.
   */
 case object HistoricalMarketFactorsBuilder extends MarketFactorsBuilder with FutureInstances {
-  override def oneDayForecastMarketFactors(portfolio: Portfolio, date: Calendar)(
+  override def ForecastMarketFactors(portfolio: Portfolio, date: Calendar, simulatedDays: Int)(
       implicit parameters: MarketFactorsParameters): Future[MarketFactorsGenerator] = {
 
     val instruments =
@@ -60,7 +60,7 @@ case object HistoricalMarketFactorsBuilder extends MarketFactorsBuilder with Fut
 
     for {
       currentFactors <- futureCurrentFactors
-    } yield OneDayGBMMarketFactorsGenerator(date, parameters.riskFreeRate, currentFactors)
+    } yield GBMMarketFactorsGenerator(date, simulatedDays, parameters.riskFreeRate, currentFactors)
   }
 
   override def marketFactors(date: Calendar)(implicit parameters: MarketFactorsParameters): MarketFactors = {
@@ -98,7 +98,7 @@ case object HistoricalMarketFactorsBuilder extends MarketFactorsBuilder with Fut
 
           val days = daysDiff(now, option.maturity)
 
-          if (days > 0) \/-(days) else -\/(ExpiredOption(option))
+          if (days > 0) \/-(days) else \/-(0)//-\/(ExpiredOption(option))
         })
 
       override protected def riskFreeRate: Future[MarketFactorsError \/ Double] =

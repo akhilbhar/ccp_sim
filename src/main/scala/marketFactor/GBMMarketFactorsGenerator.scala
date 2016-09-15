@@ -24,9 +24,10 @@ import scala.concurrent.ExecutionContext.Implicits.global
   * @param rate risk free rate.
   * @param currentFactors the current market factors.
   */
-case class OneDayGBMMarketFactorsGenerator(date: Calendar,
-                                           rate: Double,
-                                           currentFactors: Map[Instrument, CurrentFactors])
+case class GBMMarketFactorsGenerator(date: Calendar,
+                                     simulatedDays: Int,
+                                     rate: Double,
+                                     currentFactors: Map[Instrument, CurrentFactors])
     extends MarketFactorsGenerator
     with ListInstances {
   override def factors: Source[MarketFactors, NotUsed] = {
@@ -69,7 +70,7 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
     val volatility = factors.volatility
     val historicalMean = meanOfChange(factors.priceHistory)
 
-    currentPrice * exp((historicalMean - (volatility * volatility) / 2.0) + volatility * randomValue)
+    currentPrice * exp((historicalMean - (volatility * volatility) / 2.0) * simulatedDays + volatility * randomValue)
   }
 
   /**
@@ -77,17 +78,6 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
     * @return cholesky factorization of the historical prices
     */
   private val choleskyFactorization: DenseMatrix[Double] = {
-
-//    /**
-//      * Convert List of Option to Option of List
-//      * @param l list to convert
-//      * @tparam T type of what the options hold
-//      * @return Option of List
-//      */
-//    def sequence[T](l: List[Option[T]]): Option[List[T]] = {
-//      if (l.contains(None)) None else Some(l.flatten)
-//    }
-
     val priceHistory = currentFactors.values.toList.map(_.priceHistory.toList)
 
     val flatPriceHistory = priceHistory.flatten
@@ -128,9 +118,9 @@ case class OneDayGBMMarketFactorsGenerator(date: Calendar,
         val now = Calendar.getInstance()
 
         val days = daysDiff(now, option.maturity)
-        val adjustedDays = days - 1
+        val adjustedDays = days - simulatedDays
 
-        if (days > 0) \/-(days) else -\/(ExpiredOption(option))
+        if (adjustedDays > 0) \/-(adjustedDays) else -\/(ExpiredOption(option))
       })
 
     override protected def riskFreeRate: Future[MarketFactorsError \/ Double] =

@@ -1,6 +1,6 @@
 package participant
 
-import java.util.Calendar
+import java.util.{Calendar, GregorianCalendar}
 
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.pattern.pipe
@@ -10,8 +10,8 @@ import marketFactor.MarketFactorsBuilder
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import model.{Portfolio, PortfolioError}
 import participant.Client._
-import valueAtRisk.{OneDayValueAtRiskCalculator, ValueAtRiskError}
-import valueAtRisk.OneDayValueAtRiskCalculator.VaR
+import valueAtRisk.{ValueAtRiskCalculator, ValueAtRiskError}
+import valueAtRisk.ValueAtRiskCalculator.VaR
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -22,9 +22,7 @@ import scalaz.std.{FutureInstances, OptionInstances}
   * Client.
   * @param name name of the client.
   */
-case class Client(name: String,
-                  builder: MarketFactorsBuilder,
-                  parameters: MarketFactorsParameters)
+case class Client(name: String, builder: MarketFactorsBuilder, parameters: MarketFactorsParameters)
     extends Actor
     with FutureInstances
     with OptionInstances {
@@ -39,7 +37,7 @@ case class Client(name: String,
   }
 
   private def value: Future[\/[PortfolioError, Double]] = {
-    val date = Calendar.getInstance
+    val date = Calendar.getInstance()
 
     portfolio.price(builder.marketFactors(date)(parameters), parameters)
   }
@@ -48,31 +46,24 @@ case class Client(name: String,
     portfolio = portfolio.addPosition(position)
   }
 
-  private def valueAtRisk(
-      thresholdLoss: Double,
-      simulations: Long): Future[ValueAtRiskError \/ VaR] = {
+  private def valueAtRisk(thresholdLoss: Double, simulations: Long): Future[ValueAtRiskError \/ VaR] = {
     val clusterSize = 100
 
     val now = Calendar.getInstance()
 
-    OneDayValueAtRiskCalculator(thresholdLoss, simulations)(
-      builder,
-      parameters,
-      ActorSystem(),
-      clusterSize).run(portfolio, now)
+    ValueAtRiskCalculator(1, thresholdLoss, simulations)(builder, parameters, ActorSystem(), clusterSize)
+      .run(portfolio, now)
   }
 
   private def markToMarket: Future[\/[PortfolioError, Double]] = {
-    val date = Calendar.getInstance
+    val date = Calendar.getInstance()
 
     portfolio.markToMarket(builder.marketFactors(date)(parameters))
   }
 }
 
 object Client {
-  def props(name: String,
-            builder: MarketFactorsBuilder,
-            parameters: MarketFactorsParameters): Props =
+  def props(name: String, builder: MarketFactorsBuilder, parameters: MarketFactorsParameters): Props =
     Props(wire[Client])
 
   case class AddPosition(position: Position)

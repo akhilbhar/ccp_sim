@@ -10,7 +10,7 @@ import breeze.numerics.round
 import marketFactor.MarketFactorsBuilder.MarketFactorsParameters
 import marketFactor.{MarketFactors, MarketFactorsBuilder}
 import model.{Portfolio, PortfolioError}
-import valueAtRisk.OneDayValueAtRiskCalculator.VaR
+import valueAtRisk.ValueAtRiskCalculator.VaR
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -27,7 +27,7 @@ import scalaz._
   * @param system actor system on which the computation has to be run
   * @param clusterSize size of the actor cluster for computation
   */
-case class OneDayValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)(
+case class ValueAtRiskCalculator(simulatedDays: Int, thresholdLoss: Double, simulations: Long)(
     implicit builder: MarketFactorsBuilder,
     parameters: MarketFactorsParameters,
     system: ActorSystem,
@@ -43,7 +43,7 @@ case class OneDayValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)
     implicit val materializer = ActorMaterializer()
 
     val sourceF =
-      builder.oneDayForecastMarketFactors(portfolio, date).map(_.factors)
+      builder.ForecastMarketFactors(portfolio, date, simulatedDays).map(_.factors)
 
     val resultsF =
       sourceF
@@ -102,7 +102,7 @@ case class OneDayValueAtRiskCalculator(thresholdLoss: Double, simulations: Long)
 
 }
 
-object OneDayValueAtRiskCalculator {
+object ValueAtRiskCalculator {
   case class VaR(valueAtRisk: Double, outcomes: List[Double])
 }
 
